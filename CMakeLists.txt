@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
         roscpp
         rosmsg
         rospy
+        serial
         tf
         )
 
@@ -151,6 +152,8 @@ include_directories(
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
+#add_dependencies(receive_IRdate ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
@@ -158,6 +161,8 @@ include_directories(
 
 add_executable(base_node src/base_node.cpp src/base.cpp)
 target_link_libraries(base_node ${catkin_LIBRARIES})
+add_executable(receive_IRdata src/receive_IRdata.cpp)
+target_link_libraries(receive_IRdata ${catkin_LIBRARIES})
 
 #############
 ## Install ##
