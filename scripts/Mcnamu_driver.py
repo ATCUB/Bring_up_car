@@ -135,14 +135,17 @@ class yahboomcar_driver:
             for i in range(3): self.car.set_beep(0)
 
     def cmd_vel_callback(self, msg):
-        # 小车运动控制，订阅者回调函数
+        # 小车运动控制，订阅者回调函数b
         # Car motion control, subscriber callback function
         if not isinstance(msg, Twist): return
         # 下发线速度和角速度
         # Issue linear vel and angular vel
-        vx = msg.linear.x*0.5
-        vy = msg.linear.y*0.8
-        angular = msg.angular.z*0.8
+        #vx = msg.linear.x*0.5
+        #vy = msg.linear.y*0.8
+        #angular = msg.angular.z*0.8
+        vx = 0.0
+        vy = 0.0
+        angular = 0.0
         # 小车运动控制,vel: ±1, angular: ±5
         # Trolley motion control,vel=[-1, 1], angular=[-5, 5]
         # rospy.loginfo("cmd_velx: {}, cmd_vely: {}, cmd_ang: {}".format(vx, vy, angular))

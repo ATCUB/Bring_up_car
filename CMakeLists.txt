@@ -98,6 +98,7 @@ find_package(catkin REQUIRED COMPONENTS
    cfg/CalibrateLinear.cfg
    cfg/PatrolParam.cfg
    cfg/PIDparam.cfg
+   cfg/FollowPID.cfg
  )
 
 ###################################
@@ -112,7 +113,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
         #  INCLUDE_DIRS include
         #  LIBRARIES yahboomcar_bringup
-          CATKIN_DEPENDS roscpp rosmsg rospy dynamic_reconfigure geometry_msgs nav_msgs tf
+          CATKIN_DEPENDS roscpp rosmsg rospy dynamic_reconfigure geometry_msgs nav_msgs tf serial
         #  DEPENDS system_lib
 )
 
