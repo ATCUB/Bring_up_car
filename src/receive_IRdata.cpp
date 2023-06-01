@@ -48,11 +48,11 @@ int main(int argc, char** argv)
         uint8_t rec_buffer[byte_num];
         if(byte_num != 0)
         {
-           // printf("byte_num = %ld\n", byte_num);
+            printf("byte_num = %ld\n", byte_num);
             IR_module_sp.read(rec_buffer, byte_num);
             IR_msg.data = atoi((const char*)rec_buffer);
             ros_serial_IRdata_pub.publish(IR_msg);
-            //ROS_INFO_STREAM("Recvied IR data = ." << IR_msg);
+            ROS_INFO_STREAM("Recvied IR data = ." << rec_buffer);
             //ROS_INFO_STREAM("Recvied IR data[] = ." << IR_msg.data);
             //printf("Recvied IR data = %ld\r\n", IR_msg.data);
         }

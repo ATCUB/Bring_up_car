@@ -11,7 +11,7 @@ spe = Speech()
 class Ctrl_driver:
     def __init__(self):
         rospy.on_shutdown(self.cancel)	
-        self.sub_cmd_vel = rospy.Subscriber('cmd_vel', Twist, self.cmd_vel_callback, queue_size=1)
+        self.sub_cmd_vel = rospy.Subscriber('test_vel', Twist, self.cmd_vel_callback, queue_size=1)
         self.sub_JoyState = rospy.Subscriber('/JoyState', Bool, self.JoyStateCallback)
         self.velPublisher = rospy.Publisher("cmd_vel", Twist, queue_size=1)
         self.Joy_active = False

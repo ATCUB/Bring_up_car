@@ -13,16 +13,16 @@ from std_msgs.msg import Bool
 from std_msgs.msg import Int16
 from geometry_msgs.msg import Twist
 from dynamic_reconfigure.server import Server
-from dynamic_reconfigure.client import Client
+# from dynamic_reconfigure.client import Client
 from yahboomcar_bringup.cfg import FollowPIDConfig
-
+import matplotlib.pyplot as plt
 RAD2DEG = 180 / math.pi
 
 #class controller include of sub_joy and  pub_cmd_vel
 class ROSCtrl:
     def __init__(self):
         self.Joy_active = False
-        self.pub_cmdVel = rospy.Publisher('/test_vel', Twist, queue_size=10)
+        self.pub_cmdVel = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
         self.sub_JoyState = rospy.Subscriber('/JoyState', Bool, self.JoyStateCallback)
 
     def JoyStateCallback(self, msg):
@@ -46,7 +46,7 @@ class FollowLine:
         self.Track_state = 'waiting'
         self.Buzzer_state = False
         Server(FollowPIDConfig, self.dynamic_reconfigure_callback)
-        self.dyn_client = Client("FollowLine", timeout=60)
+        # self.dyn_client = Client("FollowLine", timeout=60)
         self.PID_init()
         self.ros_ctrl = ROSCtrl()
         self.pub_Buzzer = rospy.Publisher("/Buzzer", Bool, queue_size=1)
@@ -103,12 +103,12 @@ class FollowLine:
         self.Start_state = True
         twist =Twist()
         b = Bool()
-        if IRdata == 3000:
+        if IRdata == 300:
             self.ros_ctrl.pub_cmdVel.publish(Twist())
             rospy.loginfo("something wrong happened!!!Or maybe a cross ahead.")
-            self.Buzzer_state = True
-            b.data = True
-            self.pub_Buzzer.publish(b)
+            #self.Buzzer_state = True
+            #b.data = True
+            #self.pub_Buzzer.publish(b)
         else:
             [z_PID, _] = self.PID_controller.update([int(IRdata), 0])
             if self.flip == True:twist.angular.z = -z_PID
@@ -176,14 +176,23 @@ class simplePID:
         return self.Kp * P + self.Ki * I + self.Kd * D
 
 if __name__ == '__main__':
+    # IR_array = [] 
     follow_line = FollowLine()   #init class FollowLine
     ser_IR = serial.Serial('/dev/ttyUSB0', 115200, timeout=0.5)
     if ser_IR.is_open:
         print("IR module serial port --/dev/ttyUSB0 open successfully!\r\n")
-        rate = rospy.Rate(1)
+        rate = rospy.Rate(100)
         while ser_IR.is_open:
             IR_msg = rospy.wait_for_message('/serial_IRdata_msg', Int16, timeout = None)
-            follow_line.process(IR_msg.data / 10.0)
+            # IR_array.append(IR_msg.data/100.0)
+            follow_line.process(IR_msg.data / 100.0)
+            # if  len(IR_array) >= 20:
+            #         plt.ion()
+            #         plt.clf()
+            #         plt.axis([0,len(IR_array)+1,-30,30])
+            #         plt.plot(range(len(IR_array)),IR_array)
+            #         plt.pause(0.001)
+            #         plt.ioff()
 	    #print("I'm here!\r\n")
 	    #print(IR_msg)
             rate.sleep()

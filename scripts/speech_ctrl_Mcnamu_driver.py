@@ -28,7 +28,7 @@ class yahboomcar_driver:
         self.xlinear_limit = rospy.get_param('~xlinear_speed_limit', 1.0)
         self.ylinear_limit = rospy.get_param('~ylinear_speed_limit', 1.0)
         self.angular_limit = rospy.get_param('~angular_speed_limit', 5.0)
-        self.sub_cmd_vel = rospy.Subscriber('cmd_vel', Twist, self.cmd_vel_callback, queue_size=100)
+        self.sub_cmd_vel = rospy.Subscriber('test_vel', Twist, self.cmd_vel_callback, queue_size=100)
         self.sub_RGBLight = rospy.Subscriber("RGBLight", Int32, self.RGBLightcallback, queue_size=100)
         self.sub_Buzzer = rospy.Subscriber("Buzzer", Bool, self.Buzzercallback, queue_size=100)
         self.EdiPublisher = rospy.Publisher('edition', Float32, queue_size=100)
