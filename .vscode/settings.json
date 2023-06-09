@@ -4,13 +4,17 @@
         "/home/jetson/software/library_ws/devel/lib/python2.7/dist-packages",
         "/home/jetson/yahboomcar_ws/devel/lib/python2.7/dist-packages",
         "/home/jetson/software/world_canvas/devel/lib/python2.7/dist-packages",
-        "/opt/ros/melodic/lib/python2.7/dist-packages"
+        "/opt/ros/melodic/lib/python2.7/dist-packages",
+        "/usr/lib/python3.6/dist-packages"
     ],
     "python.analysis.extraPaths": [
         "/home/jetson/ROS/X3/yahboomcar_ws/devel/lib/python2.7/dist-packages",
         "/home/jetson/software/library_ws/devel/lib/python2.7/dist-packages",
         "/home/jetson/yahboomcar_ws/devel/lib/python2.7/dist-packages",
         "/home/jetson/software/world_canvas/devel/lib/python2.7/dist-packages",
-        "/opt/ros/melodic/lib/python2.7/dist-packages"
-    ]
+        "/opt/ros/melodic/lib/python2.7/dist-packages",
+        "/usr/lib/python3.6/dist-packages"
+    ],
+    "ros.distro": "melodic",
+    "cmake.configureOnOpen": true
 }

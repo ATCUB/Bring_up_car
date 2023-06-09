@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
+set(OpenCV_DIR /usr/local/opencv3.4.0/share/OpenCV)
 project(yahboomcar_bringup)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
@@ -14,14 +15,17 @@ find_package(catkin REQUIRED COMPONENTS
         roscpp
         rosmsg
         rospy
+        cv_bridge
+        image_transport
         serial
         tf
         )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
-
-
+find_package(OpenCV 3.4 REQUIRED)
+include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS} /usr/local/opencv3.4.0/include)
+link_directories(${OpenCV_LIBRARY_DIRS} /usr/local/opencv3.4.0/lib)
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
@@ -113,7 +117,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
         #  INCLUDE_DIRS include
         #  LIBRARIES yahboomcar_bringup
-          CATKIN_DEPENDS roscpp rosmsg rospy dynamic_reconfigure geometry_msgs nav_msgs tf serial
+          CATKIN_DEPENDS roscpp rosmsg rospy dynamic_reconfigure geometry_msgs nav_msgs tf serial cv_bridge image_transport
         #  DEPENDS system_lib
 )
 

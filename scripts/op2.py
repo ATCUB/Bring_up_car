@@ -25,7 +25,6 @@ if 1:
 treasure = Find_Treasure(0,"/home/jetson/pathshow_ws/src/pathshow/scripts/test14.png")
 FindTracks(treasure)
 dir = GetNextDirctions(1)
-dir[-2] = 4
 print(dir)
 position = 0
 flag = 0
@@ -44,8 +43,7 @@ def callback(config, level):
         p2 =  config["p2"]
         i2 =  config["i2"]
         d2 =  config["d2"]
-        #flag = config["direction"]
-        flag = dir[position]
+        flag = config["direction"]
         state_in = config["state"]
     data = struct.pack('fffffff', p1, i1, d1, p2, i2, d2,flag)
     ser.write(data)
@@ -78,7 +76,6 @@ flag1=0
 rospy.set_param('enable', True)
 stop = 0
 turn = 0
-uart_count = 0
 #if __name__=="__main__":
 
 while not rospy.is_shutdown() & ser.is_open :
@@ -96,8 +93,6 @@ while not rospy.is_shutdown() & ser.is_open :
 	print("初始化PID完毕")
 	init = 0
     else:#永远进这个分支
-	#print(uart_count)
-	#uart_count = uart_count + 1
         num+=1
         vel = ser.readline()#读取串口中一行信息
         if vel:#如果有信息传过来
@@ -115,8 +110,6 @@ while not rospy.is_shutdown() & ser.is_open :
                 twist.angular.z = 0
                 twist.linear.y = 0
                 twist.linear.x = 0
-                if state == 0:
-                    position =0
 		if stop == 0:
                     vel_pub.publish(twist)
 		    stop =1
@@ -141,24 +134,19 @@ while not rospy.is_shutdown() & ser.is_open :
                 if y > 5:#限幅
                     y = 5
 		print("z=",z)
-		if abs(z)>200 and abs(z)<500 and (dir[position]==1 or dir [position] ==2):
+		if abs(z)>200 and abs(z)<500 and dir[position]==1 or dir [position] ==2:
 		    z = 1.5*z
-		if abs(z)>800:
-		    #z = 1.5*z		
-		    turn = 1#在转弯
-                    count = 0
 		#if abs(z) <500 and abs(z) >200:
-		  #  z = 1.5*z
-                if abs(z)>350 and dir[position]==0:
-		    turn = 1
+		#    z = 1.5*z
+		if abs(z)>200:
+		    #z = 1.5*z
+                    turn = 1#在转弯
 	        if turn == 1 and abs(z)<50:
-                    count = count+1
-                    if count == 3:
-                        turn = 0#结束转弯
-                        position = position+1
-                        flag = dir[position]
-		        data = struct.pack('fffffff', p1, i1, d1, p2, i2, d2,flag)
-    		        ser.write(data)       
+                    turn = 0#结束转弯
+                 #   position = position+1
+                  #  flag = dir[position]
+		 #   data = struct.pack('fffffff', p1, i1, d1, p2, i2, d2,flag)
+    		 #   ser.write(data)       
                 twist.angular.z = z/100
                 twist.linear.y = y/20
                 twist.linear.x = linear_x
