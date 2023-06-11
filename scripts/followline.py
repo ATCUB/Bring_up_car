@@ -39,12 +39,14 @@ class LimitedRun(object):
 
     def __exit__(self, exc_type, exc_value, traceback):
         return
+    
 
 class RotateRobot:
     def __init__(self):
         self.imu_sub = rospy.Subscriber('/imu/imu_data', Imu, self.imu_callback)
+        self.cmd_vel_sub = rospy.Subscriber('/cmd_vel', Twist, self.vel_callback)
         self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
-        self.twist = Twist()
+        self.Rotate_twist = Twist()
         self.origin_yaw = 0.0
         self.real_yaw = 0.0
         self.real_yaw_window = []
@@ -56,6 +58,7 @@ class RotateRobot:
         self.real_yaw_filtered = 0
         self.real_yaw_delta = 0
         self.rotate_angle = 0
+        self.rotate_angular = 0
         self.target_yaw = 90.0
         self.init_count = 0
         self.first_call = 1
@@ -63,22 +66,33 @@ class RotateRobot:
         self.imu_direction = 0
         self.turn_flag=1
         self.turn_count = 0
-        
+        self.RotatePID = [0.027, 0, 0]
+        self.Rotate_Target = 0
+        self.Rotate_Angular = 0
+        self.Rotate_Real_Angle = 0
+        self.first_call = 1
+
+    def vel_callback(self, msg):
+        if not isinstance(msg, Twist): return
+        self.rotate_angular = -msg.angular.z
 
     def imu_callback(self, msg):
         if not isinstance(msg, Imu): return
+        #first 20 datas for stabilizing data, and check the origin data
         if(self.init_count <  20):
             self.init_count += 1
             self.origin_yaw = self.quaternion_to_yaw(msg.orientation)
         else:
+            #real yaw = yaw - origin yaw
             self.real_yaw = self.quaternion_to_yaw(msg.orientation) - self.origin_yaw
+            # make the real yaw in 0 to 360
             if self.real_yaw > 360:
                 self.real_yaw -= 360
             elif self.real_yaw < 0:
                self.real_yaw  += 360
 
             # Turning detect, slide window filter
-            if abs(self.real_yaw_last - self.real_yaw) > 180:
+            if abs(self.real_yaw_last - self.real_yaw) > 180:    # Here is if data change in 0 to 360, window be cleared for newest yaw data
                 self.real_yaw_window = []
             self.real_yaw_last = self.real_yaw_last - self.real_yaw
             self.real_yaw_window.append(self.real_yaw)
@@ -88,12 +102,15 @@ class RotateRobot:
             
             # print("self.real_yaw_last: ", self.real_yaw_last)
             self.real_yaw_delta = self.real_yaw_filtered - self.real_yaw_filtered_last
+
+            # make sure the delta is right in 0 to 360
             if self.real_yaw_delta > 180:
                 self.real_yaw_delta -= 360
             elif self.real_yaw_delta < -180:
                 self.real_yaw_delta +=360
             # print("self.real_yaw_filtered: ", self.real_yaw_filtered)
             # print("self.real_yaw_delta: ", self.real_yaw_delta)
+            # if delta > 5, start recording the angle of start and end
             if abs(self.real_yaw_delta) > 5:
                 if self.real_yaw_start is None:
                     self.real_yaw_start = self.real_yaw_filtered_last
@@ -101,17 +118,12 @@ class RotateRobot:
             else:
                 if self.real_yaw_start is not None and self.real_yaw_end is not None:
                     self.rotate_angle = self.real_yaw_end - self.real_yaw_start
+                    # # make sure the rotate_angle is right in 0 to 360
                     if self.rotate_angle > 180:
                         self.rotate_angle -= 360
                     elif self.rotate_angle < -180:
                         self.rotate_angle +=360
-                    # if abs(self.rotate_angle) <  70.0 and self.turn_flag ==1:
-                    #     self.twist.angular.z =  3.0
-                    # else:
-                    #     self.twist.angular.z = 0.0
-                    #     self.turn_flag= 0
-                    # self.cmd_vel_pub.publish(self.twist)
-                    
+                    #record the angle of car rotating
                     if abs(self.rotate_angle) > 60.0 :
                         self.turn_count +=1
                         print(self.turn_count) 
@@ -137,6 +149,33 @@ class RotateRobot:
             yaw  += 360
         return yaw
 
+    def Robot_Rotate(self, Rotate_cmd, Rotate_angle):
+        max_vel = 5
+        if Rotate_cmd:
+            self.Rotate_Real_Angle = self.real_yaw_filtered - 180
+            if self.first_call:
+                self.Rotate_Target = Rotate_angle + self.Rotate_Real_Angle
+                if  self.Rotate_Target > 180:
+                    self.Rotate_Target -= 360
+                elif  self.Rotate_Target < -180:
+                    self.Rotate_Target  += 360
+                self.first_call = 0
+                print("Target accquired with%d ", self.Rotate_Target)
+            # Add velocity limit to avoid out of control
+            self.Rotate_Angular = (self.Rotate_Target - self.Rotate_Real_Angle) * self.RotatePID[0] + self.rotate_angular * self.RotatePID[2]
+            #print("Error of angle accquired with%d ", self.Rotate_Target - self.Rotate_Real_Angle)
+            if abs(self.Rotate_Angular) > max_vel:
+                self.Rotate_Angular = max_vel if self.Rotate_Angular > 0 else -max_vel
+            self.Rotate_twist.angular.z = -self.Rotate_Angular
+            #print("Vel published with %d ", self.Rotate_twist.angular.z)
+            self.cmd_vel_pub.publish( self.Rotate_twist)
+            if abs(self.Rotate_Target - self.Rotate_Real_Angle) < 0.9:
+                rospy.loginfo("Finished Rotate %d", Rotate_angle)
+                self.first_call = 1
+                return True
+            else:
+                return False
+
     # def run(self):
     #     while not rospy.is_shutdown():
 
@@ -152,6 +191,7 @@ class ROSCtrl:
     def __init__(self):
         self.Cancel_Motion = 0
         self.Direction_index = 4
+        self.Rotate_Motion = 0
         self.Direction_index_Last = 4
         self.Direction = {'Forward', 'Backward', 'TurnLeft', 'TurnRight', 'Stop'}
         self.pub_cmdVel = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
@@ -185,6 +225,9 @@ class ROSCtrl:
             if self.Direction_index > 4:
                 self.Direction_index = 0
             rospy.loginfo("Now Direction is %d", self.Direction_index)
+        if joy_data.buttons[4] == 1:
+            self.Rotate_Motion = 1
+            rospy.loginfo("Rotate_Motion cmd received")
 
     def cancel(self):
         self.sub_Joy.unregister()
@@ -362,9 +405,16 @@ class simplePID:
 if __name__ == '__main__':
     rospy.init_node("FollowLine", anonymous=False)
     ROS_Ctrl = ROSCtrl()         #init class ROSCtrl
-    RotateRobot()
+    Rotate_robo = RotateRobot()
     print("Init successfully!\r\n")
+    Finish_Rotate_flag = False
     rate = rospy.Rate(100)
     while not rospy.is_shutdown():
+        if ROS_Ctrl.Rotate_Motion:
+            if not Finish_Rotate_flag:
+                Finish_Rotate_flag = Rotate_robo.Robot_Rotate(1, 180)
+            else:
+                ROS_Ctrl.Rotate_Motion = 0
+                Finish_Rotate_flag = False
         rate.sleep()
     rospy.loginfo("Node exit!")
