@@ -103,6 +103,7 @@ link_directories(${OpenCV_LIBRARY_DIRS} /usr/local/opencv3.4.0/lib)
    cfg/PatrolParam.cfg
    cfg/PIDparam.cfg
    cfg/FollowPID.cfg
+   cfg/FollowPIDnew.cfg
  )
 
 ###################################

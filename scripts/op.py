@@ -6,15 +6,85 @@ import rospy
 import numpy as np
 import time
 import gzip
+import math
 from std_msgs.msg import Int16
 import matplotlib.pyplot as plt
 from geometry_msgs.msg import Twist
+from sensor_msgs.msg import Imu
 from dynamic_reconfigure.server import Server
 from yahboomcar_bringup.cfg import  FollowPIDConfig# 导入自己的参数配置文件
 from Tracks import GetNextDirctions
 from pictureprocessing import Find_Treasure
 from Tracks import FindTracks
+position = 0
+
+
+class RotateRobot:
+    def __init__(self):
+        self.imu_sub = rospy.Subscriber('/imu/imu_data', Imu, self.imu_callback)
+        self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
+        self.twist = Twist()
+        self.origin_yaw = 0.0
+        self.real_yaw = 0.0
+        self.real_yaw_now = 0.0
+        self.real_yaw_last = 0.0
+        self.target_yaw = 90.0
+        self.init_count = 0
+        self.first_call = 1
+        self.Detect_count = 0
+        self.imu_direction = 0
+        self.imu_direction_last = 0
+        self.position=0
+
+    def imu_callback(self, msg):
+        if not isinstance(msg, Imu): return
+        if(self.init_count <  5):
+            self.init_count += 1
+            self.origin_yaw = self.quaternion_to_yaw(msg.orientation)
+        else:
+            self.real_yaw = self.quaternion_to_yaw(msg.orientation) - self.origin_yaw
+            if self.real_yaw > 360:
+                self.real_yaw -= 360
+            elif self.real_yaw < 0:
+               self.real_yaw  += 360
+            #first time call, init last_yaw
+            if(self.first_call):
+                self.real_yaw_now = self.real_yaw
+                self.real_yaw_last = self.real_yaw
+                self.first_call = 0
+                return
+            #straight line detect, if or not running on the straight line
+            if(self.Detect_count < 30):
+                self.real_yaw_last = self.real_yaw_now
+                self.real_yaw_now = self.real_yaw
+                self.Detect_count  += 1
+                if abs(self.real_yaw_last - self.real_yaw_now) < 10:
+                    self.imu_direction = 0
+                else :
+                    self.imu_direction = 1
+                if self.imu_direction_last ==1 and self.imu_direction == 0:
+                    self.position += 1
+                self.imu_direction_last  = self.imu_direction
+                print(self.position)
+            else:
+                self.Detect_count = 0
+
+    def quaternion_to_yaw(self, quaternion):
+        x = quaternion.x
+        y = quaternion.y
+        z = quaternion.z
+        w = quaternion.w
+        t3 = 2.0 * (w * z + x * y)
+        t4 = 1.0 - 2.0 * (y * y + z * z)
+        yaw = math.atan2(t3, t4)
+        yaw = math.degrees(yaw)
+        #print(self.strange)
+        if yaw < 0:
+            yaw  += 360
+        return yaw
+
 if 1:
+    RotateRobot()
     linear_x = 0.1
     p1 = 0
     p2 = 0
@@ -27,7 +97,6 @@ FindTracks(treasure)
 dir = GetNextDirctions(1)
 dir[-2] = 4
 print(dir)
-position = 0
 flag = 0
 #pid初始化
 def callback(config, level):
@@ -63,7 +132,7 @@ rate = rospy.Rate(100)
 vel_pub=rospy.Publisher("/cmd_vel",Twist,queue_size=10)#发布速度话题
 error_pub = rospy.Publisher("/error_vel",Int16,queue_size=10)#发布速度话题
 twist=Twist()
-ser = serial.Serial(port="/dev/ttyUSB0",baudrate=115200,timeout=0.5)#打开串口
+ser = serial.Serial(port="/dev/ttyUSB1",baudrate=115200,timeout=0.5)#打开串口
 if ser.is_open :
     print("open")
 else:
@@ -109,7 +178,7 @@ while not rospy.is_shutdown() & ser.is_open :
                 flag1= 0
                 end = time.time()
                 fps = 1 / ( end - start )
-                print("FPS:",fps)
+                #print("FPS:",fps)
             vel = vel.decode("utf-8")#对传过来的数据解码
             if vel[0] == "s" or state == 0:#如果以s开头，就是stop
                 twist.angular.z = 0
@@ -155,7 +224,7 @@ while not rospy.is_shutdown() & ser.is_open :
                     count = count+1
                     if count == 3:
                         turn = 0#结束转弯
-                        position = position+1
+                       # position = position+1
                         flag = dir[position]
 		        data = struct.pack('fffffff', p1, i1, d1, p2, i2, d2,flag)
     		        ser.write(data)       

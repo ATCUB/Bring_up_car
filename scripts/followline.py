@@ -1,5 +1,5 @@
-#!/usr/bin/env python2
-# encoding: utf-8
+#!/usr/bin/env python3
+# -*- coding:utf-8 -*-
 import os
 import threading
 import math
@@ -10,12 +10,13 @@ import time
 import cv2 as cv
 import numpy as np
 from std_msgs.msg import Bool
+from sensor_msgs.msg import Imu
 from std_msgs.msg import Int16
 from sensor_msgs.msg import Joy
 from geometry_msgs.msg import Twist
 from dynamic_reconfigure.server import Server
 # from dynamic_reconfigure.client import Client
-from yahboomcar_bringup.cfg import FollowPIDConfig
+from yahboomcar_bringup.cfg import FollowPIDnewConfig
 import matplotlib.pyplot as plt
 from typing import Any
 
@@ -25,15 +26,9 @@ RAD2DEG = 180 / math.pi
 class LimitedRun(object):
     run_dict = {}
 
-    def __init__(self,
-                 tag: Any = 'default',
-                 limit: int = 1):
+    def __init__(self, tag: Any = 'default', limit: int = 1):
         self.tag = tag
         self.limit = limit
-    
-    def reset(self, tag:Any):
-        if tag in self.run_dict.keys():
-            self.run_dict[tag] = 0
 
     def __enter__(self):
         if self.tag in LimitedRun.run_dict.keys():
@@ -44,6 +39,112 @@ class LimitedRun(object):
 
     def __exit__(self, exc_type, exc_value, traceback):
         return
+
+class RotateRobot:
+    def __init__(self):
+        self.imu_sub = rospy.Subscriber('/imu/imu_data', Imu, self.imu_callback)
+        self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
+        self.twist = Twist()
+        self.origin_yaw = 0.0
+        self.real_yaw = 0.0
+        self.real_yaw_window = []
+        self.window_size = 15
+        self.real_yaw_last = 0
+        self.real_yaw_filtered_last = 0
+        self.real_yaw_start = None
+        self.real_yaw_end = None
+        self.real_yaw_filtered = 0
+        self.real_yaw_delta = 0
+        self.rotate_angle = 0
+        self.target_yaw = 90.0
+        self.init_count = 0
+        self.first_call = 1
+        self.Detect_count = 10
+        self.imu_direction = 0
+        self.turn_flag=1
+        self.turn_count = 0
+        
+
+    def imu_callback(self, msg):
+        if not isinstance(msg, Imu): return
+        if(self.init_count <  20):
+            self.init_count += 1
+            self.origin_yaw = self.quaternion_to_yaw(msg.orientation)
+        else:
+            self.real_yaw = self.quaternion_to_yaw(msg.orientation) - self.origin_yaw
+            if self.real_yaw > 360:
+                self.real_yaw -= 360
+            elif self.real_yaw < 0:
+               self.real_yaw  += 360
+
+            # Turning detect, slide window filter
+            if abs(self.real_yaw_last - self.real_yaw) > 180:
+                self.real_yaw_window = []
+            self.real_yaw_last = self.real_yaw_last - self.real_yaw
+            self.real_yaw_window.append(self.real_yaw)
+            if len(self.real_yaw_window) > self.window_size:
+                self.real_yaw_window.pop(0)
+            self.real_yaw_filtered = sum(self.real_yaw_window) / len(self.real_yaw_window)
+            
+            # print("self.real_yaw_last: ", self.real_yaw_last)
+            self.real_yaw_delta = self.real_yaw_filtered - self.real_yaw_filtered_last
+            if self.real_yaw_delta > 180:
+                self.real_yaw_delta -= 360
+            elif self.real_yaw_delta < -180:
+                self.real_yaw_delta +=360
+            # print("self.real_yaw_filtered: ", self.real_yaw_filtered)
+            # print("self.real_yaw_delta: ", self.real_yaw_delta)
+            if abs(self.real_yaw_delta) > 5:
+                if self.real_yaw_start is None:
+                    self.real_yaw_start = self.real_yaw_filtered_last
+                self.real_yaw_end = self.real_yaw_filtered
+            else:
+                if self.real_yaw_start is not None and self.real_yaw_end is not None:
+                    self.rotate_angle = self.real_yaw_end - self.real_yaw_start
+                    if self.rotate_angle > 180:
+                        self.rotate_angle -= 360
+                    elif self.rotate_angle < -180:
+                        self.rotate_angle +=360
+                    # if abs(self.rotate_angle) <  70.0 and self.turn_flag ==1:
+                    #     self.twist.angular.z =  3.0
+                    # else:
+                    #     self.twist.angular.z = 0.0
+                    #     self.turn_flag= 0
+                    # self.cmd_vel_pub.publish(self.twist)
+                    
+                    if abs(self.rotate_angle) > 60.0 :
+                        self.turn_count +=1
+                        print(self.turn_count) 
+                    else:
+                        pass  
+                    print("Turn start yaw: ", self.real_yaw_start)
+                    print("Turn end yaw: ", self.real_yaw_end)
+                    print("Turn angle: ",  self.rotate_angle)
+                    self.real_yaw_start = None
+                    self.real_yaw_end = None
+            self.real_yaw_filtered_last = self.real_yaw_filtered
+
+    def quaternion_to_yaw(self, quaternion):
+        x = quaternion.x
+        y = quaternion.y
+        z = quaternion.z
+        w = quaternion.w
+        t3 = 2.0 * (w * z + x * y)
+        t4 = 1.0 - 2.0 * (y * y + z * z)
+        yaw = math.atan2(t3, t4)
+        yaw = math.degrees(yaw)
+        if yaw < 0:
+            yaw  += 360
+        return yaw
+
+    # def run(self):
+    #     while not rospy.is_shutdown():
+
+    #         else:
+    #             self.twist.angular.z = 0.0
+    #             rospy.set_param('enable',0)
+    #         self.cmd_vel_pub.publish(self.twist)
+    #         self.rate.sleep()
 
 
 #class controller include of sub_joy and  pub_cmdVel
@@ -64,14 +165,8 @@ class ROSCtrl:
         '''
         :jetson joy_data:
             axes 8: [0.0, -0.0, -0.0, -0.0, 0.0, 0.0, 0.0, 0.0]
-            左摇杆(左正右负): axes[0]
-            左摇杆(上正下负): axes[1]
-            右摇杆(左正右负): axes[2]
-            右摇杆(上正下负): axes[3]
-            R2(按负抬正): axes[4] cancel_nav
-            L2(按负抬正): axes[5]
-            左按键(左正右负): axes[6]
-            左按键(上正下负): axes[7]
+            R2: axes[4] cancel_nav
+            L2: axes[5]
             buttons 15:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             A: buttons[0]
             B: buttons[1]
@@ -81,17 +176,15 @@ class ROSCtrl:
             R1: buttons[7] RGBLight
             SELECT: buttons[10]
             START: buttons[11] Buzze
-            左摇杆按下: buttons[13] linear Gear control
-            右摇杆按下: buttons[14] angular Gear control
         '''
         if joy_data.buttons[0] == 1:
             self.Cancel_Motion ^= 1
-
-        if joy_data.buttons[1] == 1:
+            rospy.loginfo("Now Motion is %d", self.Cancel_Motion)
+        if joy_data.buttons[1] == 1:  
             self.Direction_index += 1
             if self.Direction_index > 4:
                 self.Direction_index = 0
-            rospy.loginfo("Now Direction is %s", self.Direction[self.Direction_index])
+            rospy.loginfo("Now Direction is %d", self.Direction_index)
 
     def cancel(self):
         self.sub_Joy.unregister()
@@ -100,7 +193,6 @@ class ROSCtrl:
 class FollowLine:
     def __init__(self):
         rospy.init_node("FollowLine", anonymous=False)
-        self.scale = 2000
         self.dyn_update = False
         self.Start_state = True
         self.Data_Of_OPENMV = 0
@@ -109,11 +201,14 @@ class FollowLine:
         self.linear_y = 0
         self.angular_z = 0
         self.error_of_z = 0
+        self.FPS_count = 0
+        self.start = 0
+        self.end = 0
         self.flip = True
         self.Track_state = 'waiting'
         self.Buzzer_state = False
         self.Send_Count = 0
-        Server(FollowPIDConfig, self.dynamic_reconfigure_callback)
+        Server(FollowPIDnewConfig, self.dynamic_reconfigure_callback)
         # self.dyn_client = Client("FollowLine", timeout=60)
         self.PID_init()
         self.ros_ctrl = ROSCtrl()
@@ -122,7 +217,7 @@ class FollowLine:
         self.pub_vel = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
         self.sub_IR = rospy.Subscriber("/serial_IRdata_msg", Int16, queue_size=1)
         self.sub_vel = rospy.Subscriber("/pub_vel", Twist, queue_size=1)
-        self.ser_OPMV = serial.Serial('/dev/ttyUSB0', 115200, timeout=0.5)
+        self.ser_OPMV = serial.Serial('/dev/ttyUSB1', 115200, timeout=1)
 
     def cancel(self):
         self.Reset()
@@ -140,67 +235,54 @@ class FollowLine:
     def PID_init(self):
         self.PID_controller = simplePID(
             [0, 0],
-            [self.FollowPID[0] / 1.0 / (self.scale), 0],
-            [self.FollowPID[1] / 1.0 / (self.scale), 0],
-            [self.FollowPID[2] / 1.0 / (self.scale), 0])
+            [self.FollowPID[0] / 1.0 , 0],
+            [self.FollowPID[1] / 1.0 , 0],
+            [self.FollowPID[2] / 1.0 , 0])
         
     def dynamic_reconfigure_callback(self, config, level):
-        self.scale = config['scale']
         self.linear_x = config['linear_x']
         self.FollowPID = (config['Kp'], config['Ki'], config['Kd'])
         self.PID_init()
         return config
 
     def Openmv_Data_Receive(self):
-        self.Openmv_Data_Rx = self.ser_OPMV.readline()
+        try:
+            self.Openmv_Data_Rx = self.ser_OPMV.readline()
+        except:
+            return
+        #print(self.Openmv_Data_Rx)
         if self.Openmv_Data_Rx:
-            Openmv_Data_Rx = Openmv_Data_Rx.decode("utf-8")
-            if Openmv_Data_Rx[0] == 's' or self.Track_state == 'waiting':
+            if self.FPS_count ==  0:
+                self.start = time.time()
+            self.Openmv_Data_Rx = self.Openmv_Data_Rx.decode("utf-8")
+            if self.Openmv_Data_Rx[0] == 's' :
                 self.Move_Stop()
             else:
-                Openmv_Data_Rx = Openmv_Data_Rx.split(",")
-                self.linear_y = float(Openmv_Data_Rx[0])
-                self.angular_z = float(Openmv_Data_Rx[1])
-                self.error_of_z = float(Openmv_Data_Rx[2])
+                Data_Rx = self.Openmv_Data_Rx.split(",")
+                self.linear_y = float(Data_Rx[0])
+                self.angular_z = float(Data_Rx[1]) / 100
+                self.error_of_z = float(Data_Rx[2])
+
+                self.Follow_Twist.angular.x = self.linear_x
+                self.Follow_Twist.angular.z =  self.angular_z
+                self.pub_vel.publish(self.Follow_Twist)
+                self.FPS_count += 1
+                if self.FPS_count == 100:
+                    self.end = time.time()
+                    self.FPS_count = 0
+                    rospy.loginfo("FPS: %f .", 100 / (self.end - self.start))
+                    rospy.loginfo("Angular.Z: %f .", self.angular_z)
+
 
     def Move_Stop(self):
         self.Follow_Twist.angular.x = 0
         self.Follow_Twist.angular.y = 0
         self.Follow_Twist.angular.z = 0
-        if self.Send_Count:
-            self.pub_vel.publish(self.Follow_Twist)
-            self.Send_Count = 0;    
+        self.pub_vel.publish(self.Follow_Twist)
+    
     def Openmv_Data_Transmit(self, dir):
-        self.ser_OPMV.write(dir)
-
-    def process(self, IR_data):
-        self.Track_state = 'tracking'
-        if self.Track_state == 'tracking':
-            threading.Thread(target=self.execute, args=(IR_data, )).start()
-        else:
-            if self.Start_state == True:
-                self.ros_ctrl.pub_cmdVel.publish(Twist())
-                self.Start_state = False
-
-    def execute(self, IRdata):
-        self.Start_state = True
-        twist =Twist()
-        b = Bool()
-        if IRdata == 300:
-            self.ros_ctrl.pub_cmdVel.publish(Twist())
-            rospy.loginfo("something wrong happened!!!Or maybe a cross ahead.")
-        else:
-            [z_PID, _] = self.PID_controller.update([int(IRdata), 0])
-            if self.flip == True:twist.angular.z = -z_PID
-            else: twist.angular.z = +z_PID
-            twist.linear.x = self.linear_x
-            if self.Buzzer_state == True:
-                b.data = False
-                for i in range(3): self.pub_Buzzer.publish(b)
-                self.Buzzer_state = False
-            self.ros_ctrl.pub_cmdVel.publish(twist)
-            print("Publish successfully!\r\n")
-
+        #self.ser_OPMV.write(dir)
+        1
 
 class simplePID:
     '''very simple discrete PID controller'''
@@ -255,23 +337,34 @@ class simplePID:
         # return controll signal
         return self.Kp * P + self.Ki * I + self.Kd * D
 
+# if __name__ == '__main__':
+#     follow_line = FollowLine()   #init class FollowLine
+#     ROS_Ctrl = ROSCtrl()         #init class ROSCtrl
+#     RotateRobot()
+#     if follow_line.ser_OPMV.is_open:
+#         print("OPmv module serial port --/dev/ttyUSB1 open successfully!\r\n")
+#         rate = rospy.Rate(100)
+#         while not rospy.is_shutdown() and follow_line.ser_OPMV.is_open:
+#             if not ROS_Ctrl.Cancel_Motion:
+#                 follow_line.Openmv_Data_Receive()
+#             else:
+#                 with LimitedRun('Send_Stop_msg', 1) as limited_run:
+#                     if limited_run:
+#                         follow_line.Move_Stop()
+#                         rospy.loginfo("Move_Stop!")
+#             if ROS_Ctrl.Direction_index != ROS_Ctrl.Direction_index_Last:
+#                 follow_line.Openmv_Data_Transmit(ROS_Ctrl.Direction_index)
+#                 ROS_Ctrl.Direction_index_Last = ROS_Ctrl.Direction_index
+#             rate.sleep()
+#         rospy.loginfo("Node exit!")
+#     else: rospy.loginfo("Serial open Failed!")
+
 if __name__ == '__main__':
-    follow_line = FollowLine()   #init class FollowLine
+    rospy.init_node("FollowLine", anonymous=False)
     ROS_Ctrl = ROSCtrl()         #init class ROSCtrl
-    ser_OPmv = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
-    if ser_OPmv.is_open:
-        print("OPmv module serial port --/dev/ttyUSB0 open successfully!\r\n")
-        rate = rospy.Rate(100)
-        while ser_OPmv.is_open:
-            if not ROS_Ctrl.Cancel_Motion:
-                follow_line.Openmv_Data_Receive()
-                LimitedRun.reset('Send_Stop_msg')
-            else:
-                with LimitedRun('Send_Stop_msg', 1) as limited_run:
-                    if limited_run:
-                        follow_line.Move_Stop()
-            if ROS_Ctrl.Direction_index != ROS_Ctrl.Direction_index_Last:
-                follow_line.Openmv_Data_Transmit(ROS_Ctrl.Direction_index)
-                ROS_Ctrl.Direction_index_Last = ROS_Ctrl.Direction_index
-            rate.sleep()
-    else: print("Serial open Failed!\r\n")
+    RotateRobot()
+    print("Init successfully!\r\n")
+    rate = rospy.Rate(100)
+    while not rospy.is_shutdown():
+        rate.sleep()
+    rospy.loginfo("Node exit!")

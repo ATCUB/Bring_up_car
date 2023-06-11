@@ -21,7 +21,7 @@ class yahboomcar_driver:
         # 弧度转角度
         # Radians turn angle
         self.RA2DE = 180 / pi
-        self.car = Rosmaster(com = "/dev/ttyUSB1",) #com = "/dev/ttyUSB1",
+        self.car = Rosmaster(com = "/dev/ttyUSB0",) #com = "/dev/ttyUSB1",
         self.car.set_car_type(1)
         self.imu_link = rospy.get_param("~imu_link", "imu_link")
         self.Prefix = rospy.get_param("~prefix", "")
