@@ -30,7 +30,7 @@
         <param name="odom_frame" type="string" value="odom"/>
         <param name="base_footprint_frame" type="string" value="base_footprint"/>
         <param name="linear_scale_x" type="double" value="1.0"/>
-        <param name="linear_scale_y" type="double" value="1.0"/>
+        <param name="linear_scale_y" type="double" value="1.05"/>
         <remap from="/sub_vel" to="/vel_raw"/>
         <remap from="/pub_odom" to="/odom_raw"/>
     </node>
@@ -44,7 +44,7 @@
         <param name="use_magnetic_field_msg" value="false"/>
         <param name="world_frame" value="enu"/>
         <param name="orientation_stddev" value="0.05"/>
-        <param name="angular_scale" value="1.05"/>
+        <param name="angular_scale" value="1.0"/>
         <remap from="/sub_imu" to="/imu/imu_raw"/>
         <remap from="/sub_mag" to="/mag/mag_raw"/>
         <remap from="/pub_imu" to="/imu/imu_data"/>

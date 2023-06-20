@@ -351,10 +351,10 @@ def GetNextDirction(Location_X,Location_Y,H):
                 return 0
             if (dirction == 1):
                 print("十字右转")
-                return 2
+                return 5
             if (dirction == 3):
                 print("十字左转")
-                return 1
+                return 4
 
     else:
         print("直走")
@@ -375,7 +375,6 @@ def GetNextDirctions(H):
         # print(GetNextDirction(x, y, H))
 	if (GetNextDirction(x,y,H)!=None):
             Dir.append(GetNextDirction(x,y,H))
-
     return Dir
 
 "定义路径寻找函数，作为主要函数"

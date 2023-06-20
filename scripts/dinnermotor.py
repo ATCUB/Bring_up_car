@@ -27,7 +27,6 @@ from Tracks import FindTracks
 treasure = Find_Treasure(0,"/home/jetson/pathshow_ws/src/pathshow/scripts/test14.png")
 FindTracks(treasure)
 direction = GetNextDirctions(1)
-direction = [0,4,0,3.5,0,3.5,4,3.5]
 print("Start Direction is %d", direction)
 RAD2DEG = 180 / math.pi
 
@@ -146,7 +145,7 @@ class RotateRobot:
                     print("Turn end yaw: ", self.real_yaw_end)
                     print("Turn angle: ",  self.rotate_angle)
                     if abs(self.rotate_angle) >20:
-                        self.position +=1
+                        self.position +=0
                     global follow_line
                    # if direction[Rotate_robo.position]==0 :
                     #    print("follow_line.for0:",follow_line.for0)  
@@ -270,7 +269,7 @@ class FollowLine:
         self.Start_state = True
         self.Data_Of_OPENMV = 0
         self.FollowPID = (60, 0, 20)
-        self.linear_x = 0.3
+        self.linear_x = 0.8
         self.linear_y = 0
         self.turn=0
         self.count = 0  
@@ -292,7 +291,7 @@ class FollowLine:
         self.pub_vel = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
         self.sub_IR = rospy.Subscriber("/serial_IRdata_msg", Int16, queue_size=1)
         self.sub_vel = rospy.Subscriber("/pub_vel", Twist, queue_size=1)
-        self.ser_OPMV = serial.Serial('/dev/ttyUSB1', 115200, timeout=1)
+        self.ser_OPMV = serial.Serial('/dev/ttyUSB2', 115200, timeout=1)
 
     def cancel(self):
         self.Reset()
@@ -343,32 +342,29 @@ class FollowLine:
                 self.linear_y = float(Data_Rx[0]) / -200.0
                 up = 0.25
                 down = 0.05
-              #  if self.angular_z>0:
+                if self.angular_z>0:
                  #   self.angular_z = self.angular_z*0.5
-                    #self.linear_y = self.linear_y*4.0
+                    self.linear_y = self.linear_y*4.0
                 if self.linear_y > up:
                    self.linear_y = up
                 if self.linear_y < -up:
                    self.linear_y = -up
                 if self.linear_y < down and self.linear_y>-down:  
                    self.linear_y =0
-		if abs(self.angular_z )>4:
+		if abs(self.linear_y )==up:
 		    #z = 1.5*z
-                    #if self.turn ==0:
-                    print("在转弯")
                     self.turn = 1#在转弯
                     self.count=0
                     self.linear_x = 0.3
-                    #self.angular_z 
-                if abs(self.angular_z)<1 and self.turn==1:
+                    print("在转弯")
+                if abs(self.linear_y)==0.0 and self.turn==1:
                     self.count+=1
-                    print("count:",self.count)
-                    if self.count > 2:
+                    #print("count:",self.count)
+                    if self.count == 2:
                         self.turn = 0
-                        self.linear_x = 0.3
+                        self.linear_x = 0.7
                         print("在直线")
-               # print("linear_z",self.linear_y)
-		print("linear_z",self.angular_z)
+                #print("linear_y",self.linear_y)
                 global Rotate_robo
                 if direction[Rotate_robo.position] == 3 or direction[Rotate_robo.position] ==0 or self.turn==1:
                    self.Follow_Twist.linear.y = self.linear_y
@@ -392,7 +388,7 @@ class FollowLine:
         self.pub_vel.publish(self.Follow_Twist)
     
     def Openmv_Data_Transmit(self, dir):
-        data = struct.pack('fffffff',0.6, 0.1, 0.05,2.4, 0.0, 0.35,dir)
+        data = struct.pack('fffffff',0.8, 0.0, 0,4.0, 0.0, 0.3,dir)
         self.ser_OPMV.write(data)          	
 
 class simplePID:
@@ -463,12 +459,11 @@ if __name__ == '__main__':
     while not rospy.is_shutdown():
         if not ROS_Ctrl.Cancel_Motion:
             follow_line.Openmv_Data_Receive()
-            rospy.loginfo("Direction[%d] is %d", Rotate_robo.position,direction[Rotate_robo.position])
             if Rotate_robo.position_last != Rotate_robo.position:
                 Rotate_robo.position_last = Rotate_robo.position
-                follow_line.Openmv_Data_Transmit(direction[Rotate_robo.position])
-                #follow_line.Openmv_Data_Transmit(3)
-               # rospy.loginfo("Direction[%d] is %d", Rotate_robo.position,direction[Rotate_robo.position])
+                #follow_line.Openmv_Data_Transmit(direction[Rotate_robo.position])
+                follow_line.Openmv_Data_Transmit(3)
+                rospy.loginfo("Direction[%d] is %d", Rotate_robo.position,direction[Rotate_robo.position])
 	else:
 	    Rotate_robo.position_last = 0
 	    Rotate_robo.position = 0	        

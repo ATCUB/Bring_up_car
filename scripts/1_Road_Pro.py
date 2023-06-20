@@ -16,7 +16,7 @@ def detect_intersection_type():
         # 读取图像并转换为灰度图
         imag = cap.read()[1]
         imag_shape = imag.shape
-        image = imag[int(imag_shape[0]/2.0):imag_shape[0],0:imag_shape[1]]
+        image = imag[int(imag_shape[0]/4.0):imag_shape[0],0:imag_shape[1]]
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
         # 使用阈值化处理，使黑色循迹线变成白色，背景变成黑色
@@ -26,10 +26,10 @@ def detect_intersection_type():
         kernel = np.ones((5, 5), np.uint8)
         dilated = cv2.erode(thresh, kernel, iterations=1)
         dilated_1 = cv2.erode(dilated, kernel, iterations=1)
-        #dilated = cv2.erode(dilated_1, kernel, iterations=1)
-        #dilated = cv2.dilate(dilated, kernel, iterations=1)
-        #dilated = cv2.dilate(dilated, kernel, iterations=1)
-        #dilated = cv2.dilate(dilated, kernel, iterations=1)
+        dilated = cv2.erode(dilated_1, kernel, iterations=1)
+        dilated = cv2.dilate(dilated, kernel, iterations=1)
+        dilated = cv2.dilate(dilated, kernel, iterations=1)
+        dilated = cv2.dilate(dilated, kernel, iterations=1)
         dilated = cv2.dilate(dilated, kernel, iterations=1)
         cv2.imshow("dilated",dilated)
         # 使用霍夫变换查找直线

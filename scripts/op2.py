@@ -73,9 +73,11 @@ last_len =50
 ary = 0
 num=0
 flag1=0
+count = 0
 rospy.set_param('enable', True)
 stop = 0
 turn = 0
+stop_count = 0
 #if __name__=="__main__":
 
 while not rospy.is_shutdown() & ser.is_open :
@@ -104,7 +106,7 @@ while not rospy.is_shutdown() & ser.is_open :
                 flag1= 0
                 end = time.time()
                 fps = 1 / ( end - start )
-                print("FPS:",fps)
+               # print("FPS:",fps)
             vel = vel.decode("utf-8")#对传过来的数据解码
             if vel[0] == "s" or state == 0:#如果以s开头，就是stop
                 twist.angular.z = 0
@@ -112,6 +114,7 @@ while not rospy.is_shutdown() & ser.is_open :
                 twist.linear.x = 0
 		if stop == 0:
                     vel_pub.publish(twist)
+                    stop_count +=1
 		    stop =1
                 else:
 	            1
@@ -122,34 +125,45 @@ while not rospy.is_shutdown() & ser.is_open :
     		ser.write(data)   
             else:#说明是PID的输出
                 stop = 0
-		print("now position:",position,"now direction:",flag)	
+		#print("now position:",position,"now direction:",flag)	
                 a = vel.split(",")
                 y = float(a[0])
+                print("fuck:",y)
+		y = y*-0.1
                 z = float(a[1])
-                error  =  float(a[2])
+                error  =  float(a[0])
                 error_pub.publish(error)
                 z = -z#改变极性使得方向正确
 		#获得yz两个速度
                 print("y=",y)
+		#print("z=",z)
+		#if dir[position]==1.0 or dir [position] ==2.0:
+		 #   z = 4*z
+		#print("z=",z)
+		#if abs(z) <150:
+		 #   z = 0
+	       # if turn == 1 and abs(z)<50:
+                  #  turn = 0#结束转弯
+                twist.linear.x = linear_x
+                print("count",count,"turn",turn)
+		print("stopcount:",stop_count)
+              #  if z<0:
+                 #   z = z*2.0
+                    #y = y*0.5
+               # if z>0:
+                #    y = y*4.0
                 if y > 5:#限幅
                     y = 5
-		print("z=",z)
-		if abs(z)>200 and abs(z)<500 and dir[position]==1 or dir [position] ==2:
-		    z = 1.5*z
-		#if abs(z) <500 and abs(z) >200:
-		#    z = 1.5*z
-		if abs(z)>200:
-		    #z = 1.5*z
-                    turn = 1#在转弯
-	        if turn == 1 and abs(z)<50:
-                    turn = 0#结束转弯
+		if y<-5:
+		    y =-5
+                if y<1 and y>-1:
+                    y = 0          
                  #   position = position+1
                   #  flag = dir[position]
 		 #   data = struct.pack('fffffff', p1, i1, d1, p2, i2, d2,flag)
     		 #   ser.write(data)       
                 twist.angular.z = z/100
                 twist.linear.y = y/20
-                twist.linear.x = linear_x
                 vel_pub.publish(twist)#发布速度
                 #下面都是一些调试的接口，包括误差存储和误差变化图，已经废弃         
                 #last_len =len(error_array)

@@ -87,8 +87,7 @@ def Video_Init(color):
 
 
     "红蓝方检测"
-    while(rospy.get_param("enable")):
-    	ref, frame = cap.read()
+    while(1):
     #while(1):
         flag = 0
         flag_blue = 1
@@ -406,13 +405,13 @@ def Video_Init(color):
             print("这是真宝藏")
             # print(True_Value)
             # return True_Value
-	    rospy.set_param('goal',1)
- 	    rospy.set_param("enable",0)
+	    #rospy.set_param('goal',1)
+ 	   # rospy.set_param("enable",0)
         else:
             True_Value = 0
             print("这是假宝藏")
-	    rospy.set_param('goal',0)
-	    rospy.set_param("enable",0)
+	  #  rospy.set_param('goal',0)
+	   # rospy.set_param("enable",0)
             # print(True_Value)
             # return True_Value
         cv2.imshow("frame", frame)

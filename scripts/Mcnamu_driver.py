@@ -25,7 +25,7 @@ class yahboomcar_driver:
         self.car.set_car_type(1)
         self.imu_link = rospy.get_param("~imu_link", "imu_link")
         self.Prefix = rospy.get_param("~prefix", "")
-        self.xlinear_limit = rospy.get_param('~xlinear_speed_limit', 1.0)
+        self.xlinear_limit = 3.0
         self.ylinear_limit = rospy.get_param('~ylinear_speed_limit', 1.0)
         self.angular_limit = rospy.get_param('~angular_speed_limit', 5.0)
         self.sub_cmd_vel = rospy.Subscriber('cmd_vel', Twist, self.cmd_vel_callback, queue_size=1)
@@ -154,7 +154,7 @@ class yahboomcar_driver:
     def dynamic_reconfigure_callback(self, config, level):
         # self.car.set_pid_param(config['Kp'], config['Ki'], config['Kd'])
         # print("PID: ", config['Kp'], config['Ki'], config['Kd'])
-        self.linear_max = config['linear_max']
+        self.linear_max = 3.0
         self.linear_min = config['linear_min']
         self.angular_max = config['angular_max']
         self.angular_min = config['angular_min']
