@@ -30,24 +30,6 @@ direction = GetNextDirctions(1)
 direction = [0,4,0,3.5,0,3.5,4,3.5]
 print("Start Direction is %d", direction)
 RAD2DEG = 180 / math.pi
-
-#limit excute num
-# class LimitedRun(object):
-#     run_dict = {}
-
-#     def __init__(self, tag: Any = 'default', limit: int = 1):
-#         self.tag = tag
-#         self.limit = limit
-
-#     def __enter__(self):
-#         if self.tag in LimitedRun.run_dict.keys():
-#             LimitedRun.run_dict[self.tag] += 1
-#         else:
-#             LimitedRun.run_dict[self.tag] = 1
-#         return LimitedRun.run_dict[self.tag] <= self.limit
-
-#     def __exit__(self, exc_type, exc_value, traceback):
-#         return
     
 
 class RotateRobot:
@@ -83,7 +65,6 @@ class RotateRobot:
         self.first_call = 1
         self.position = 0
         self.position_last = 0
-        #self.fuck = 0
 
     def vel_callback(self, msg):
         if not isinstance(msg, Twist): return
@@ -146,23 +127,23 @@ class RotateRobot:
                     print("Turn end yaw: ", self.real_yaw_end)
                     print("Turn angle: ",  self.rotate_angle)
                     if abs(self.rotate_angle) >20:
-                        self.position +=1
+                        self.position +=0
                     global follow_line
                    # if direction[Rotate_robo.position]==0 :
                     #    print("follow_line.for0:",follow_line.for0)  
-		    if self.position == len(direction):
-		    	rospy.set_param('enable', True)
-		    	while(rospy.get_param('enable')):
-		            pass
-			goal = rospy.get_param('goal')
-			if goal == 0:
-			    Cancel_Motion = 1 
-			    ROS_Ctrl.Rotate_Motion = 1
-			else:
-			    pass
-			print("goal:",goal)
-                    self.real_yaw_start = None
-                    self.real_yaw_end = None
+                if self.position == len(direction):
+                    rospy.set_param('enable', True)
+                    while(rospy.get_param('enable')):
+                        pass
+                goal = rospy.get_param('goal')
+                if goal == 0:
+                    Cancel_Motion = 1 
+                    ROS_Ctrl.Rotate_Motion = 1
+                else:
+                    pass
+                print("goal:",goal)
+                self.real_yaw_start = None
+                self.real_yaw_end = None
             self.real_yaw_filtered_last = self.real_yaw_filtered
 
     def quaternion_to_yaw(self, quaternion):
@@ -285,14 +266,13 @@ class FollowLine:
         self.Send_Count = 0
         Server(FollowPIDnewConfig, self.dynamic_reconfigure_callback)
         # self.dyn_client = Client("FollowLine", timeout=60)
-        self.PID_init()
         self.ros_ctrl = ROSCtrl()
         self.Follow_Twist = Twist()
         self.pub_Buzzer = rospy.Publisher("/Buzzer", Bool, queue_size=1)
         self.pub_vel = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
         self.sub_IR = rospy.Subscriber("/serial_IRdata_msg", Int16, queue_size=1)
         self.sub_vel = rospy.Subscriber("/pub_vel", Twist, queue_size=1)
-        self.ser_OPMV = serial.Serial('/dev/ttyUSB1', 115200, timeout=1)
+        self.ser_OPMV = serial.Serial('/dev/ttyUSB2', 115200, timeout=1)
 
     def cancel(self):
         self.Reset()
@@ -303,16 +283,9 @@ class FollowLine:
         print("Shutting down this node.\r\n")
 
     def Reset(self):
-        self.PID_init()
         self.Track_state = 'waiting'
         rospy.loginfo("Reset Successfully! Robot is waiting.")
 
-    def PID_init(self):
-        self.PID_controller = simplePID(
-            [0, 0],
-            [self.FollowPID[0] / 1.0 , 0],
-            [self.FollowPID[1] / 1.0 , 0],
-            [self.FollowPID[2] / 1.0 , 0])
         
     def dynamic_reconfigure_callback(self, config, level):
        # self.linear_x = config['linear_x']
@@ -329,46 +302,94 @@ class FollowLine:
             if self.FPS_count ==  0:
                 self.start = time.time()
             self.Openmv_Data_Rx = self.Openmv_Data_Rx.decode("utf-8")
+            # Stop signal 
             if self.Openmv_Data_Rx[0] == 's' :
                 self.Move_Stop()
+           # elif self.Openmv_Data_Rx[0] == 'L':
+             #   if self.turn==0:
+                       # self.Follow_Twist.linear.x = 0.0
+                       # self.Follow_Twist.angular.z =  10.0
+                       # self.pub_vel.publish(self.Follow_Twist)
+                       # time.sleep(0.2)
+                       # self.turn = 1
+                       # print("左转")
+            #elif self.Openmv_Data_Rx[0] == 'R':
+               # if self.turn==0:
+                      #  self.Follow_Twist.linear.x = 0.0
+                     #   self.Follow_Twist.angular.z =  -10.0
+                     #   self.pub_vel.publish(self.Follow_Twist)
+                     #   time.sleep(0.1)
+                      #  self.turn = 1
+                       # print("右转")
+         #   elif self.Openmv_Data_Rx[0] == 'T':
+               # if self.turn==0:
+                     #   self.Follow_Twist.linear.x = 0.0
+                     #   self.Follow_Twist.angular.z =  -10.0
+                      #  self.pub_vel.publish(self.Follow_Twist)
+                       # time.sleep(0.1)
+                     #   self.turn = 1
+                      #  print("T右转")
+           # elif self.Openmv_Data_Rx[0] == "D":
+                #pass
+            # Normal running
             else:
+                # split data from openmv
                 Data_Rx = self.Openmv_Data_Rx.split(",")
+                # angular z , unit: rad/s, scale is 100
                 self.angular_z = float(Data_Rx[1]) / 100.0
-                self.for0 = float(Data_Rx[1])
+                # data
+                self.for0 = float(Data_Rx[2])
+                # max black blob width in 6 ROI
+                self.Width = float(Data_Rx[3])
+                # position confirm
                 global Rotate_robo
                 if abs(self.for0)>400 and direction[Rotate_robo.position]==0 :
                    Rotate_robo.position +=1
                    print("fuck")    
+                # error between black line and midpoint 
                 self.error_of_z = float(Data_Rx[2])
+                # linear y , unit: m/s, scale is 200
                 self.linear_y = float(Data_Rx[0]) / -200.0
+                # linear_y maximum
                 up = 0.25
+                # linear_y minimum
                 down = 0.05
               #  if self.angular_z>0:
                  #   self.angular_z = self.angular_z*0.5
                     #self.linear_y = self.linear_y*4.0
+                # limit linear y (0.05 to 0.25 m/s)
                 if self.linear_y > up:
                    self.linear_y = up
                 if self.linear_y < -up:
                    self.linear_y = -up
                 if self.linear_y < down and self.linear_y>-down:  
                    self.linear_y =0
-		if abs(self.angular_z )>4:
-		    #z = 1.5*z
-                    #if self.turn ==0:
-                    print("在转弯")
-                    self.turn = 1#在转弯
-                    self.count=0
+                    #self.angular_z
+                # turn behaviour detection, if max black blob width > 150, and turn  == 0, can be considered that turn behaviour is happening
+                if  self.Width > 150 and self.turn == 0:
+                    # linear_x when turning
+                    self.linear_x = 0
+                    # set self.turn
+                    self.turn =1
+                    # reset self.count
+                    self.count = 0
+                    # linear_x when turning
+                    self.Follow_Twist.linear.x = 0.0
+                    # angular_z when turning (-5.0, 5.0)
+                    self.Follow_Twist.angular.z =  10.0
+                    self.pub_vel.publish(self.Follow_Twist)
+                    # delay to hold turning state
+                    time.sleep(0.1)
+                    print("在转弯") 
+                # straight behaviour detection, if max black blob width < 105, and turn  == 1, can be considered that straight behaviour is happening
+                if self.Width<105 and self.turn==1:
                     self.linear_x = 0.3
-                    #self.angular_z 
-                if abs(self.angular_z)<1 and self.turn==1:
-                    self.count+=1
                     print("count:",self.count)
-                    if self.count > 2:
-                        self.turn = 0
-                        self.linear_x = 0.3
-                        print("在直线")
+                    if self.count > 5:
+                       self.turn = 0
+                    print("在直线")
                # print("linear_z",self.linear_y)
-		print("linear_z",self.angular_z)
+		    #print("linear_z",self.angular_z)
                 global Rotate_robo
                 if direction[Rotate_robo.position] == 3 or direction[Rotate_robo.position] ==0 or self.turn==1:
                    self.Follow_Twist.linear.y = self.linear_y
@@ -386,67 +407,17 @@ class FollowLine:
 
 
     def Move_Stop(self):
+        self.Follow_Twist.linear.x = 0
+        self.Follow_Twist.linear.y = 0
+        self.Follow_Twist.linear.z = 0
         self.Follow_Twist.angular.x = 0
         self.Follow_Twist.angular.y = 0
         self.Follow_Twist.angular.z = 0
         self.pub_vel.publish(self.Follow_Twist)
     
     def Openmv_Data_Transmit(self, dir):
-        data = struct.pack('fffffff',0.6, 0.1, 0.05,2.4, 0.0, 0.35,dir)
+        data = struct.pack('fffffff',0.0, 0.0, 0.00,2.4, 0.0, 0.35,dir)
         self.ser_OPMV.write(data)          	
-
-class simplePID:
-    '''very simple discrete PID controller'''
-
-    def __init__(self, target, P, I, D):
-        '''Create a discrete PID controller
-        each of the parameters may be a vector if they have the same length
-        Args:
-        target (double) -- the target value(s)
-        P, I, D (double)-- the PID parameter
-        '''
-        # check if parameter shapes are compatabile.
-        if (not (np.size(P) == np.size(I) == np.size(D)) or ((np.size(target) == 1) and np.size(P) != 1) or (
-                np.size(target) != 1 and (np.size(P) != np.size(target) and (np.size(P) != 1)))):
-            raise TypeError('input parameters shape is not compatable')
-        rospy.loginfo('P:{}, I:{}, D:{}'.format(P, I, D))
-        self.Kp = np.array(P)
-        self.Ki = np.array(I)
-        self.Kd = np.array(D)
-        self.last_error = 0
-        self.integrator = 0
-        self.timeOfLastCall = None
-        self.setPoint = np.array(target)
-        self.integrator_max = float('inf')
-
-    def update(self, current_value):
-        '''Updates the PID controller.
-        Args:
-            current_value (double): vector/number of same legth as the target given in the constructor
-        Returns:
-            controll signal (double): vector of same length as the target
-        '''
-        current_value = np.array(current_value)
-        if (np.size(current_value) != np.size(self.setPoint)):
-            raise TypeError('current_value and target do not have the same shape')
-        if (self.timeOfLastCall is None):
-            # the PID was called for the first time. we don't know the deltaT yet
-            # no controll signal is applied
-            self.timeOfLastCall = time.clock()
-            return np.zeros(np.size(current_value))
-        error = self.setPoint - current_value
-        P = error
-        currentTime = time.clock()
-        deltaT = (currentTime - self.timeOfLastCall)
-        # integral of the error is current error * time since last update
-        self.integrator = self.integrator + (error * deltaT)
-        I = self.integrator
-        # derivative is difference in error / time since last update
-        D = (error - self.last_error) / deltaT
-        self.last_error = error
-        self.timeOfLastCall = currentTime
-        # return controll signal
-        return self.Kp * P + self.Ki * I + self.Kd * D
 
 
 if __name__ == '__main__':
@@ -457,26 +428,26 @@ if __name__ == '__main__':
     if follow_line.ser_OPMV.is_open:
         rospy.loginfo("OPmv module serial port --/dev/ttyUSB1 open successfully!")
     rospy.loginfo("Init successfully!")
-    follow_line.Openmv_Data_Transmit(direction[Rotate_robo.position])
+    #follow_line.Openmv_Data_Transmit(direction[Rotate_robo.position])
     Finish_Rotate_flag = False
     rate = rospy.Rate(200)
     while not rospy.is_shutdown():
         if not ROS_Ctrl.Cancel_Motion:
             follow_line.Openmv_Data_Receive()
-            rospy.loginfo("Direction[%d] is %d", Rotate_robo.position,direction[Rotate_robo.position])
+            #rospy.loginfo("Direction[%d] is %d", Rotate_robo.position,direction[Rotate_robo.position])
             if Rotate_robo.position_last != Rotate_robo.position:
                 Rotate_robo.position_last = Rotate_robo.position
-                follow_line.Openmv_Data_Transmit(direction[Rotate_robo.position])
-                #follow_line.Openmv_Data_Transmit(3)
+                #follow_line.Openmv_Data_Transmit(direction[Rotate_robo.position])
+                follow_line.Openmv_Data_Transmit(3)
                # rospy.loginfo("Direction[%d] is %d", Rotate_robo.position,direction[Rotate_robo.position])
-	else:
-	    Rotate_robo.position_last = 0
-	    Rotate_robo.position = 0	        
-	if ROS_Ctrl.Rotate_Motion:
-            if not Finish_Rotate_flag:
-                Finish_Rotate_flag = Rotate_robo.Robot_Rotate(1, 180)
             else:
-                ROS_Ctrl.Rotate_Motion = 0
-                Finish_Rotate_flag = False
+                Rotate_robo.position_last = 0
+                Rotate_robo.position = 0	        
+            if ROS_Ctrl.Rotate_Motion:
+                    if not Finish_Rotate_flag:
+                        Finish_Rotate_flag = Rotate_robo.Robot_Rotate(1, 30)
+                    else:
+                        ROS_Ctrl.Rotate_Motion = 0
+                        Finish_Rotate_flag = False
         rate.sleep()
     rospy.loginfo("Follow Line Node Exit!")
