@@ -28,6 +28,7 @@ treasure = Find_Treasure(0,"/home/jetson/pathshow_ws/src/pathshow/scripts/test14
 FindTracks(treasure)
 direction = GetNextDirctions(1)
 direction = [0,4,0,3.5,0,3.5,4,3.5]
+direction2 = [1,1,2,2,1,2,1,2]
 print("Start Direction is %d", direction)
 RAD2DEG = 180 / math.pi
     
@@ -135,13 +136,13 @@ class RotateRobot:
                     rospy.set_param('enable', True)
                     while(rospy.get_param('enable')):
                         pass
-                goal = rospy.get_param('goal')
-                if goal == 0:
-                    Cancel_Motion = 1 
-                    ROS_Ctrl.Rotate_Motion = 1
-                else:
-                    pass
-                print("goal:",goal)
+                #goal = rospy.get_param('goal')
+                #if goal == 0:
+                #    Cancel_Motion = 1 
+                #    ROS_Ctrl.Rotate_Motion = 1
+                #else:
+                #    pass
+                #print("goal:",goal)
                 self.real_yaw_start = None
                 self.real_yaw_end = None
             self.real_yaw_filtered_last = self.real_yaw_filtered
@@ -256,6 +257,7 @@ class FollowLine:
         self.turn=0
         self.count = 0  
         self.angular_z = 0
+        self.postion = 0
         self.error_of_z = 0
         self.FPS_count = 0
         self.start = 0
@@ -272,7 +274,7 @@ class FollowLine:
         self.pub_vel = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
         self.sub_IR = rospy.Subscriber("/serial_IRdata_msg", Int16, queue_size=1)
         self.sub_vel = rospy.Subscriber("/pub_vel", Twist, queue_size=1)
-        self.ser_OPMV = serial.Serial('/dev/ttyUSB2', 115200, timeout=1)
+        self.ser_OPMV = serial.Serial('/dev/ttyUSB1', 115200, timeout=1)
 
     def cancel(self):
         self.Reset()
@@ -290,7 +292,7 @@ class FollowLine:
     def dynamic_reconfigure_callback(self, config, level):
        # self.linear_x = config['linear_x']
         self.FollowPID = (config['Kp'], config['Ki'], config['Kd'])
-        self.PID_init()
+        #self.PID_init()
         return config
 
     def Openmv_Data_Receive(self):
@@ -305,6 +307,7 @@ class FollowLine:
             # Stop signal 
             if self.Openmv_Data_Rx[0] == 's' :
                 self.Move_Stop()
+                print("stop")
            # elif self.Openmv_Data_Rx[0] == 'L':
              #   if self.turn==0:
                        # self.Follow_Twist.linear.x = 0.0
@@ -366,28 +369,40 @@ class FollowLine:
                    self.linear_y =0
                     #self.angular_z
                 # turn behaviour detection, if max black blob width > 150, and turn  == 0, can be considered that turn behaviour is happening
+                print("width:",self.Width)
                 if  self.Width > 150 and self.turn == 0:
                     # linear_x when turning
-                    self.linear_x = 0
+                    self.linear_x = 0.3
                     # set self.turn
                     self.turn =1
                     # reset self.count
                     self.count = 0
                     # linear_x when turning
                     self.Follow_Twist.linear.x = 0.0
+                    global direction2
                     # angular_z when turning (-5.0, 5.0)
-                    self.Follow_Twist.angular.z =  10.0
+                    if direction2[self.postion] ==1:
+                       self.Follow_Twist.angular.z =  5.0
+                    elif direction2[self.postion] ==2:
+		                self.Follow_Twist.angular.z =  -5.0
                     self.pub_vel.publish(self.Follow_Twist)
+		            print("dreciotn:",direction2[self.postion])
+                    print("postion:",[self.postion])
                     # delay to hold turning state
-                    time.sleep(0.1)
+                    if  self.postion == 6:
+                       time.sleep(0.35)
+                    else:
+                       time.sleep(0.20)
                     print("在转弯") 
+                    self.postion += 1
                 # straight behaviour detection, if max black blob width < 105, and turn  == 1, can be considered that straight behaviour is happening
-                if self.Width<105 and self.turn==1:
-                    self.linear_x = 0.3
+                if self.Width<100 and self.turn==1:
+                    self.linear_x = 1.0
+                    self.count+=1
                     print("count:",self.count)
-                    if self.count > 5:
+                    if self.count > 7:
                        self.turn = 0
-                    print("在直线")
+                       print("在直线")
                # print("linear_z",self.linear_y)
 		    #print("linear_z",self.angular_z)
                 global Rotate_robo
@@ -416,7 +431,7 @@ class FollowLine:
         self.pub_vel.publish(self.Follow_Twist)
     
     def Openmv_Data_Transmit(self, dir):
-        data = struct.pack('fffffff',0.0, 0.0, 0.00,2.4, 0.0, 0.35,dir)
+        data = struct.pack('fffffff',0.0, 0.0, 0.00,2.4, 0.0, 0.3,dir)
         self.ser_OPMV.write(data)          	
 
 
@@ -425,8 +440,6 @@ if __name__ == '__main__':
     follow_line = FollowLine()
     ROS_Ctrl = ROSCtrl()         #init class ROSCtrl
     Rotate_robo = RotateRobot()
-    if follow_line.ser_OPMV.is_open:
-        rospy.loginfo("OPmv module serial port --/dev/ttyUSB1 open successfully!")
     rospy.loginfo("Init successfully!")
     #follow_line.Openmv_Data_Transmit(direction[Rotate_robo.position])
     Finish_Rotate_flag = False

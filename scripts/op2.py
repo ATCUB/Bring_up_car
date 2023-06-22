@@ -61,7 +61,7 @@ rate = rospy.Rate(100)
 vel_pub=rospy.Publisher("/cmd_vel",Twist,queue_size=10)#发布速度话题
 error_pub = rospy.Publisher("/error_vel",Int16,queue_size=10)#发布速度话题
 twist=Twist()
-ser = serial.Serial(port="/dev/ttyUSB1",baudrate=115200,timeout=0.5)#打开串口
+ser = serial.Serial(port="/dev/ttyUSB2",baudrate=115200,timeout=0.5)#打开串口
 if ser.is_open :
     print("open")
 else:
