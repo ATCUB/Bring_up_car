@@ -325,26 +325,29 @@ def GetNextDirction(Location_X,Location_Y,H):
                            Treasure_Indexs[Indexs[num]].point[1] * 40 + 20)
         print("road = ", Road)
         if (Road == 1):
-            print("走L")
-            return 3
-
+            if (dirction == 3):
+                print("L左转")
+                return 1
+            if (dirction == 1):
+                print("L右转")
+                return 2
         if (Road == 2):
             if (dirction == 3):
                 print("T左转")
-                return 1
+                return 4
             if (dirction == 1):
                 print("T右转")
-                return 2
+                return 5
         if (Road == 3):
             if (dirction == 0):
                 print("-|或者|-这种道路直走")
                 return 0
             if (dirction == 1):
                 print("-|右转")
-                return 2
+                return 5
             if (dirction == 3):
                 print("-|左转")
-                return 1
+                return 4
         if (Road ==4):
             if (dirction == 0):
                 print("十字道路直走")
@@ -606,7 +609,7 @@ tracks = FindTracks(((20,380),(340,220),(180,260),(380,300),(100,300),(220, 140.
 
 #     print("dir = ",dir)
 print(tracks)
-Dir = GetNextDirctions(1)
+Dir = GetNextDirctions(2)
 print(Dir)
 # tracks = FindTracks(((20,380),(340,220),(180,260),(380,300),(100,300),(220, 140.),( 60, 180.),(20, 100.),(300,100.),(380,20)))
 # for track in Global_Track_6:

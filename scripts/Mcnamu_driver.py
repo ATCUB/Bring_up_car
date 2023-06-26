@@ -21,7 +21,7 @@ class yahboomcar_driver:
         # 弧度转角度
         # Radians turn angle
         self.RA2DE = 180 / pi
-        self.car = Rosmaster(com = "/dev/ttyUSB0",) #com = "/dev/ttyUSB1",
+        self.car = Rosmaster() 
         self.car.set_car_type(1)
         self.imu_link = rospy.get_param("~imu_link", "imu_link")
         self.Prefix = rospy.get_param("~prefix", "")
@@ -39,6 +39,7 @@ class yahboomcar_driver:
         self.magPublisher = rospy.Publisher("/pub_mag", MagneticField, queue_size=100)
         self.dyn_server = Server(PIDparamConfig, self.dynamic_reconfigure_callback)
         self.car.create_receive_threading()
+	rospy.set_param('beep', 0)
 
     def cancel(self):
         self.velPublisher.unregister()

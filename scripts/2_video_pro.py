@@ -2,17 +2,15 @@
 import cv2
 import numpy as np
 import math
-import rospy
+import time
 "定义黑白比列检测函数"
-#rospy.Rate(1)
-rospy.set_param('enable', True)
+
 True_Value = 0
-rospy.init_node('video_pro',anonymous=True)
-#rate = rospy.Rate(100)
 "定义红蓝方"
 red = 1
 blue = 0
 color = blue
+
 "判断真假宝藏，真1，假0"
 def Get_Value():
     return True_Value
@@ -26,15 +24,15 @@ def Blak_White(img):
         # print("img.shape=",img.shape)
         "改变照片的大小比例"
         ratio = img.shape[0] / 50.0
-        rate = img.shape[1] / img.shape[0]
+        rate = img.shape[1]*1.0 / img.shape[0]
 
         "当照片的比列太奇怪了就放弃"
         # print("rate=", rate)
-        if rate < 0.4 or rate >2 :
+        if rate < 0.25 or rate >2 :
             print("rate=",rate)
             return 0
         Len = rate * 20.0
-        img = img[:]
+        img = img.copy()
         # print("len=",int(Len))
         img = cv2.resize(img, (int(Len), 20))
         # cv2.imshow("img",img)
@@ -50,11 +48,12 @@ def Blak_White(img):
                     black += 1
                 else:
                     white += 1
-        print("白色个数:", white)
-        print("黑色个数:", black)
+        print("white:", white)
+        print("black:", black)
+        # time.sleep(2)
 
     "当白色占黑色比列满足就表示存在"
-    if white>(1.0*black/10.0):
+    if white>(black/10):
         return 1
     else:return 0
 
@@ -88,9 +87,7 @@ def Video_Init(color):
 
 
     "红蓝方检测"
-    while(rospy.get_param("enable")):
-    	ref, frame = cap.read()
-    #while(1):
+    while(True):
         flag = 0
         flag_blue = 1
         flag_red = 1
@@ -101,10 +98,11 @@ def Video_Init(color):
                 if flag_blue == 1 :
                     "将读到的照片转换比例"
                     ref, frame = cap.read()
+                    frame = cv2.resize(frame,(640,480))
                     ratio = frame.shape[0] / 500.0
                     rate = frame.shape[1] / frame.shape[0]
                     Len = rate * 500.0
-                    orig = frame[:]
+                    orig = frame.copy()
                     frame = cv2.resize(frame, (int(Len), 500))
                     # print(frame.shape)
 
@@ -159,7 +157,7 @@ def Video_Init(color):
                     ratio = frame.shape[0] / 500.0
                     rate = frame.shape[1] / frame.shape[0]
                     Len = rate * 500.0
-                    orig = frame[:]
+                    orig = frame.copy()
                     frame = cv2.resize(frame, (int(Len), 500))
                     # print(frame.shape)
 
@@ -217,7 +215,7 @@ def Video_Init(color):
                     ratio = frame.shape[0] / 500.0
                     rate = frame.shape[1] / frame.shape[0]
                     Len = rate * 500.0
-                    orig = frame[:]
+                    orig = frame.copy()
                     frame = cv2.resize(frame, (int(Len), 500))
                     # print(frame.shape)
 
@@ -272,7 +270,7 @@ def Video_Init(color):
                     ratio = frame.shape[0] / 500.0
                     rate = frame.shape[1] / frame.shape[0]
                     Len = rate * 500.0
-                    orig = frame[:]
+                    orig = frame.copy()
                     frame = cv2.resize(frame, (int(Len), 500))
                     # print(frame.shape)
 
@@ -344,17 +342,15 @@ def Video_Init(color):
         if flag_truth == 1 :
             "检测到矩形的时候经行二次处理"
             "对原图片进行处理"
-            new_frame = frame[:]
+            new_frame = frame.copy()
             new_frame = new_frame[y + 3:y + h - 3, x + 3:x + w - 3]
-            ratio = new_frame.shape[0] / 500.0
-            rate = new_frame.shape[1] *1.0/ new_frame.shape[0]
+            ratio = new_frame.shape[0]*1.0 / 500.0
+            rate = new_frame.shape[1]*1.0 / new_frame.shape[0]
             Len = rate * 500.0
-            new_frame = new_frame[:]
-            print("new_frame.shape",new_frame.shape)
-            cv2.imshow("new_frame", new_frame)
+            new_frame = new_frame.copy()
             new_frame = cv2.resize(new_frame, (int(Len), 500))
-            # new_frame = new_frame[20:-20, 20:-20]
-            # cv2.imshow("new_frame", new_frame)
+            new_frame = new_frame[20:-20, 20:-20]
+            cv2.imshow("new_frame", new_frame)
             # print("new_frame.shape",new_frame.shape)
 
             "使用HSV空间进行检测"
@@ -371,10 +367,10 @@ def Video_Init(color):
                 # mask_green = mask_green[20:-20, 200:-200]
                 # cv2.imshow("mask_green", mask_green)
                 # print("mask_green.shape = ", mask_green.shape)
-                print("Green_BW")
+                # print("Green_BW")
                 flag_rate = Blak_White(mask_green)
                 # print(mask_green.shape)
-                # print("flag_rate=",flag_rate)
+                print("flag_rate mask_green =",flag_rate)
                 if flag_rate == 1:
                     if color == red:
                         flag_truth = 1
@@ -391,9 +387,9 @@ def Video_Init(color):
                 # mask_yellow = mask_yellow[20:-20, 200:-200]
                 # cv2.imshow("mask_yellow", mask_yellow)
                 # 检测黑白比例来判断是否满足检测需求
-                print("Yellow_WB")
+                # print("Yellow_WB")
                 flag_rate = Blak_White(mask_yellow)
-                print("flag_rate=", flag_rate)
+                print("flag_rate mask_yellow=", flag_rate)
                 if flag_rate == 1:
                     if color == red:
                         flag_truth = 0
@@ -407,19 +403,14 @@ def Video_Init(color):
             print("这是真宝藏")
             # print(True_Value)
             # return True_Value
-	    rospy.set_param('goal',1)
- 	    rospy.set_param("enable",1)
         else:
             True_Value = 0
             print("这是假宝藏")
-	    rospy.set_param('goal',0)
-	    rospy.set_param("enable",1)
             # print(True_Value)
             # return True_Value
         cv2.imshow("frame", frame)
-        cv2.imshow("mask_green", mask_green)
-        cv2.imshow("mask_yellow", mask_yellow)
+        #cv2.imshow("mask_green", mask_green)
+        #cv2.imshow("mask_yellow", mask_yellow)
         cv2.waitKey(50)
-while(1):
-    Video_Init(blue)
-#rospy.sleep()
+Video_Init(blue)
+t = Get_Value();

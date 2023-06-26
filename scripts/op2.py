@@ -156,12 +156,12 @@ while not rospy.is_shutdown() & ser.is_open :
                     y = 5
 		if y<-5:
 		    y =-5
-                if y<1 and y>-1:
-                    y = 0          
+               # if y<1 and y>-1:
+                  #  y = 0          
                  #   position = position+1
                   #  flag = dir[position]
 		 #   data = struct.pack('fffffff', p1, i1, d1, p2, i2, d2,flag)
-    		 #   ser.write(data)       
+    		 #   ser.write(data)    
                 twist.angular.z = z/100
                 twist.linear.y = y/20
                 vel_pub.publish(twist)#发布速度
