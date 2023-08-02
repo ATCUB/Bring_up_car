@@ -62,7 +62,7 @@ def Blak_White(img):
 # color 是颜色 红色是1 蓝色是0
 def Video_Init(color):
     "获取照片"
-    cap = cv2.VideoCapture(0) # 0表示默认相机设备
+    cap = cv2.VideoCapture(1) # 0表示默认相机设备
     if not cap.isOpened():
         print("Failed to open camera")
         exit()
@@ -408,12 +408,12 @@ def Video_Init(color):
             # print(True_Value)
             # return True_Value
 	    rospy.set_param('goal',1)
- 	    rospy.set_param("enable",1)
+ 	    rospy.set_param("enable",0)
         else:
             True_Value = 0
             print("这是假宝藏")
 	    rospy.set_param('goal',0)
-	    rospy.set_param("enable",1)
+	    rospy.set_param("enable",0)
             # print(True_Value)
             # return True_Value
         cv2.imshow("frame", frame)

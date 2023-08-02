@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import math
 import time
+import rospy
 "定义黑白比列检测函数"
 
 True_Value = 0
@@ -10,7 +11,10 @@ True_Value = 0
 red = 1
 blue = 0
 color = blue
-
+rospy.set_param("open",0)
+rospy.set_param('enable', False)
+True_Value = 0
+rospy.init_node('video_pro',anonymous=True)
 "判断真假宝藏，真1，假0"
 def Get_Value():
     return True_Value
@@ -28,9 +32,9 @@ def Blak_White(img):
 
         "当照片的比列太奇怪了就放弃"
         # print("rate=", rate)
-        if rate < 0.25 or rate >2 :
+        if rate < 0.25 or rate >4 :
             print("rate=",rate)
-            return 0
+            return 9
         Len = rate * 20.0
         img = img.copy()
         # print("len=",int(Len))
@@ -60,6 +64,8 @@ def Blak_White(img):
 "识别宝藏"
 # color 是颜色 红色是1 蓝色是0
 def Video_Init(color):
+    flag_True_Num = 0
+    flag_Flase_Num = 0
     "获取照片"
     cap = cv2.VideoCapture(0) # 0表示默认相机设备
     if not cap.isOpened():
@@ -77,22 +83,23 @@ def Video_Init(color):
     lower_red_1 = np.array([168, 43, 46])
     upper_red_1 = np.array([182, 255, 255])
     lower_green = np.array([50, 43, 46])
-    upper_green = np.array([100, 255, 255])
+    upper_green = np.array([90, 255, 255])
     lower_yellow = np.array([20, 43, 46])
     upper_yellow = np.array([40, 255, 255])
     lower_blue = np.array([93, 43, 46])
     upper_blue = np.array([123, 255, 255])
 
 
-
-
+  #  while(not rospy.get_param("enable")):
+     #   ref, frame = cap.read()
     "红蓝方检测"
-    while(True):
+    while(rospy.get_param("enable")):
+    	ref, frame = cap.read()
         flag = 0
         flag_blue = 1
         flag_red = 1
         flag_color = 0
-        while(flag != 1 ):
+        while(flag != 1):
             # cv2.waitKey(10)
             if color == blue:
                 if flag_blue == 1 :
@@ -104,7 +111,7 @@ def Video_Init(color):
                     Len = rate * 500.0
                     orig = frame.copy()
                     frame = cv2.resize(frame, (int(Len), 500))
-                    # print(frame.shape)
+                    #print(frame.shape)
 
                     "将图像转换为HSV像素空间，因为HSV空间对颜色比较敏感"
                     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -126,6 +133,7 @@ def Video_Init(color):
                     diff_min = 99999
                     x = y = w = h = 0
                     flag = 0
+                    #print("aaa")
                     for i in range(len(contours)):
                         # 过滤掉不是矩形的轮廓
                         if len(contours[i]) < 4:
@@ -324,6 +332,9 @@ def Video_Init(color):
 
 
         "在原图片上画出矩形框"
+        if rospy.get_param("opened") ==0:
+            print("wc,op")
+            rospy.set_param("open",1)
         # print("diff_min = ", diff_min)
         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
         # cv2.imshow("frame", frame)
@@ -376,7 +387,7 @@ def Video_Init(color):
                         flag_truth = 1
                     if color == blue:
                         flag_truth = 0
-                else :
+                elif (flag_rate == 0) :
                     flag_truth = 0
 
             "再使用黄色检测，判断是否满足要求，是则flag_rate = 1"
@@ -397,20 +408,40 @@ def Video_Init(color):
                         flag_truth = 1
                 else :
                     flag_truth = 0
-
         if flag_truth == 1:
-            True_Value = 1
-            print("这是真宝藏")
-            # print(True_Value)
-            # return True_Value
+            if(flag_Flase_Num == 0):
+                flag_True_Num = flag_True_Num + 1
+            else:
+                flag_Flase_Num = 0
         else:
+            if (flag_True_Num == 0):
+		if(flag_rate != 9):
+                    flag_Flase_Num = flag_Flase_Num + 1
+            else:
+                flag_True_Num = 0
+        if (flag_True_Num == 1):
+            True_Value = 1
+            flag_True_Num = 0
+            print("这是真宝藏")
+            #time.sleep(1)
+	    rospy.set_param('goal',1)
+ 	    rospy.set_param("enable",0)         
+            rospy.set_param("open",0)            
+        if (flag_Flase_Num == 10):
             True_Value = 0
+            flag_Flase_Num = 0
+            #time.sleep(1)
+	    rospy.set_param('goal',0)
+	    rospy.set_param("enable",0)
+            rospy.set_param("open",0) 
             print("这是假宝藏")
-            # print(True_Value)
-            # return True_Value
         cv2.imshow("frame", frame)
         #cv2.imshow("mask_green", mask_green)
         #cv2.imshow("mask_yellow", mask_yellow)
         cv2.waitKey(50)
-Video_Init(blue)
-t = Get_Value();
+while(1):
+    Video_Init(blue)
+
+
+
+

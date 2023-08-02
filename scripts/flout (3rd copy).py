@@ -22,21 +22,23 @@ from nav_msgs.msg import Odometry
 from yahboomcar_bringup.cfg import FollowPIDnewConfig
 import matplotlib.pyplot as plt
 from typing import Any
+from Tracks import GetNextDirctions
 import struct
 from std_msgs.msg import String
-from Tracks import FindTracks,GetNextDirctions
-FindTracks(np.loadtxt("/home/jetson/yahboomcar_ws/src/yahboomcar_bringup/scripts/MinTracksPoints.txt"))
+from pictureprocessing import Find_Treasure
+from Tracks import FindTracks
+treasure = Find_Treasure(0,"/home/jetson/pathshow_ws/src/pathshow/scripts/test14.png")
+FindTracks(treasure)
 dir_num = 1
 direction2 = GetNextDirctions(dir_num)
 #direction2 = [1,1,2,2,1,2,1,2,0,2,0,1,1,2]
 # print("Start Direction is %d", direction2)
 RAD2DEG = 180 / math.pi
-rospy.set_param("opened",0)
 
 # 运动组，例如0.2, -0.1, 0.2, 0.2, 180，表示以0.2的速度行走 -0.1m, 以0.2的速度行走 0.2m, 最后旋转180，顺序执行
 # 数组末尾为旋转角度，如果为0表示不旋转，数组数量大于3,i且为奇数
-Move_lastcorner_back = [0.2, 0.0, 180]
-Move_lastcorner = [0.4, 0.0, 180]
+Move_lastcorner = [0.2, 0.1, 180]
+
 def timer_callback(event):
     rospy.loginfo('Timer triggered')
 
@@ -88,10 +90,10 @@ class MoveRobot:
         self.time_start_mesu = 0
         self.time_end_mesu = 0
         self.triger_last = 0
-        self.tolerance = 0.04
+        self.tolerance = 0.01
         self.direction = 1
         self.speed = 0
-        self.PID = [3.0, 0, 0.5]
+        self.PID = [3.0, 0, 0.3]
         self.error = [0.0, 0.0, 0.0]
 
     def get_position(self):
@@ -110,7 +112,6 @@ class MoveRobot:
 
     def move(self, vel, req_distance):
         move_cmd = Twist()
-        #首次调用初始化位置，并return
         if self.first_call_move:
             self.position = self.get_position()
             self.x_start = self.position.x
@@ -155,7 +156,7 @@ class MoveRobot:
                 self.cmd_vel.publish(Twist()) 
                 self.speed = 0
                 self.first_call_move = 1     
-                print("last distance: ", distance)
+                # print("last distance: ", distance)
                 return True         
             else:
                 # If not, move in the appropriate direction
@@ -168,14 +169,15 @@ class MoveRobot:
                     move_cmd.linear.x = self.speed
                 else:
                     move_cmd.linear.y = copysign(vel, -1 * error)
-                #print("distance: ", distance)
-                #print("error: ", error)
+                # print("distance: ", distance)
+                # print("error: ", error)
                 # print("speed: ", self.speed)
                 self.cmd_vel.publish(move_cmd)
                 return False
             # print ("time: {},distance: {},test_distance: {},position: {}".format(
             #     (start - end), distance, self.test_distance, self.position))
  
+        
     def dis_measure(self, triger):
         if triger:
             self.triger_last = 1
@@ -309,8 +311,11 @@ class RotateRobot:
                     global follow_line
                    # if direction[Rotate_robo.position]==0 :
                     #    print("follow_line.for0:",follow_line.for0)  
-               # if self.position == len(direction2):
-
+                if self.position == len(direction2):
+                    rospy.set_param('enable', True)
+                    while(rospy.get_param('enable')):
+                        pass
+                #goal = rospy.get_param('goal')
                 #if goal == 0:
                 #    Cancel_Motion = 1 
                 #    ROS_Ctrl.Rotate_Motion = 1
@@ -357,18 +362,19 @@ class RotateRobot:
             elif  error <= -180:
                 error  += 360
             self.Rotate_Angular = (error) * self.RotatePID[0] + self.rotate_angular * self.RotatePID[2]
+#print("Error of angle accquired with%d ", self.Rotate_Target - self.Rotate_Real_Angle)
             error = self.Rotate_Target - self.Rotate_Real_Angle
-            if abs(self.Rotate_Target - self.Rotate_Real_Angle) < 4:
+            if abs(self.Rotate_Target - self.Rotate_Real_Angle) < 3:
                 rospy.loginfo("Finished Rotate %d", Rotate_angle)
                 self.Rotate_twist.angular.z = 0
-                self.Rotate_twist.linear.x = 0
+            	self.Rotate_twist.linear.x = 0
                 self.cmd_vel_pub.publish( self.Rotate_twist)
                 self.first_call = 1
                 return True
             else:
                 self.Rotate_twist.angular.z = -self.Rotate_Angular
                 #print("Vel published with %d ", self.Rotate_twist.angular.z)
-                self.Rotate_twist.linear.x = 0
+            	self.Rotate_twist.linear.x = 0
                 self.cmd_vel_pub.publish( self.Rotate_twist)
                 return False
         else:
@@ -468,13 +474,11 @@ class FollowLine:
         self.postion = 0
         self.error_of_z = 0
         self.FPS_count = 0
-	self.noturn = 0
         self.start = 0
         self.end = 0
         self.flip = True
         self.stop_flag = 0
         self.next_first = 0
-	self.slowdown=0
         self.error_pub = rospy.Publisher("/error_vel",Int16,queue_size=10)#发布速度话题
         self.Track_state = 'waiting'
         self.Buzzer_state = False
@@ -507,7 +511,7 @@ class FollowLine:
         #self.PID_init()
         return config
     def Openmv_Data_Transmit(self, dir):
-        data = struct.pack('fffffffi',0.0, 0.0, 0.0,3.0, 0.0, 0.7,dir,60)
+        data = struct.pack('fffffffi',0.0, 0.0, 0.0,3.0, 0.0, 0.5,dir,60)
         self.ser_OPMV.write(data)  
 
     def Openmv_Data_Receive(self):
@@ -521,61 +525,8 @@ class FollowLine:
                 self.start = time.time()
             self.Openmv_Data_Rx = self.Openmv_Data_Rx.decode("utf-8")
             # Stop signal 
-            if len(direction2) ==self.postion and rospy.get_param("open") == 1:
-                back = Twist()
-                back.linear.x = 0.0
-                self.pub_vel.publish(back)
-              #  while(rospy.get_param("open")):
-                 #   1
-                #    print("检测开启")
-                rospy.set_param("opened",1)
             if self.Openmv_Data_Rx[0] == 's' and self.turn==0:
                 self.stop_flag = 1
-                #print("stop_flag")
-                if 1:
-                    if len(direction2) ==self.postion:
-                        print(self.postion)
-                        #print("yes")
-                        self.pub_vel.publish(Twist())                        
-                        time.sleep(1.0)
-                        goal = rospy.get_param('goal')
-                        print(goal)
-                        if self.stop_flag and goal==1:
-                            print("真")
-                            back = Twist()
-                            back.linear.x = 0.4
-                            self.pub_vel.publish(back)
-                            time.sleep(0.7)
-                            back.linear.x = -0.4
-                            self.pub_vel.publish(back)
-                            time.sleep(0.7)
-                            print("action")
-                            movement_execute(Move_lastcorner)
-                            self.direction_flag = 1
-                            self.postion = 0
-			    self.slowdown=0
-                            dir_num +=1
-                            direction2 = GetNextDirctions(dir_num)
-		            self.ser_OPMV.reset_input_buffer()
-		            self.ser_OPMV.reset_output_buffer()
-	                    self.noturn = 0
-		            self.next_first =0
-                        elif self.stop_flag and goal==0:
-                            print("假")
-                            back = Twist()
-                            back.linear.x = -0.5
-                            self.pub_vel.publish(back)
-                            time.sleep(0.5)
-                            movement_execute(Move_lastcorner_back)
-                            self.direction_flag = 1
-                            self.postion = 0
-			    self.slowdown=0
-                            dir_num +=1
-                            direction2 = GetNextDirctions(dir_num)
-		            self.ser_OPMV.reset_input_buffer()
-		            self.ser_OPMV.reset_output_buffer()
-		            self.next_first =0
-
             else:
                 self.stop_flag = 0
             if 0:
@@ -618,7 +569,7 @@ class FollowLine:
                     #self.angular_z
                 # turn behaviour detection, if max black blob width > 150, and turn  == 0, can be considered that turn behaviour is happening
                 #print("width:",self.Width)
-                if  self.Width > 115 and self.turn == 0 and self.noturn == 0:                  #out
+                if  self.Width > 115 and self.turn == 0:                  #out
                     # linear_x when turning
                     if  self.direction_flag == 0:
                         self.Follow_Twist.linear.x = -0.1
@@ -638,7 +589,7 @@ class FollowLine:
 
 		    self.pub_vel.publish(self.Follow_Twist)
                     #print("direction:",direction2[self.postion])
-                    print("postion:",[self.postion])
+                    #print("postion:",[self.postion])
                     rospy.set_param('beep', True)
                     self.pub_Buzzer.publish(True)
                     ## delay to hold turning state
@@ -664,16 +615,22 @@ class FollowLine:
                           self.postion += 1
                        else:
                           1  
-                if len(direction2) ==self.postion:
-		    rospy.set_param('enable', True)
-                if len(direction2) ==self.postion and self.slowdown==0:
-                    print("slowdown")
-                    self.noturn = 1
-		  #  rospy.set_param('enable', True)
-                    self.linear_x =0.5 
-	            self.slowdown=1
                     #if len(direction2)-1 ==self.postion and self.turn == 0:                      
-		#if 1:                  
+		if 1:
+                    if len(direction2) ==self.postion:
+                        if self.stop_flag == 1:
+                            self.pub_vel.publish(Twist())
+                            time.sleep(0.1)
+                            movement_execute(Move_lastcorner)
+                            self.direction_flag = 1
+                            self.postion = 0
+                            dir_num +=1
+                            direction2 = GetNextDirctions(dir_num)
+		            self.ser_OPMV.reset_input_buffer()
+		            self.ser_OPMV.reset_output_buffer()
+		            self.next_first =0
+                        else:
+                            self.linear_x =0.5                   
                 if self.direction_flag ==1:
 		    self.linear_x =0.8
                 global Rotate_robo    
@@ -701,36 +658,23 @@ class FollowLine:
 # param[out]: True, finished movement group
 # param[out]: False, finishing movement group
 def movement_execute(mov_grop):
-    #设置直线运动的频率10hz
     mov_rate = rospy.Rate(10)
-    #设置旋转运动的频率100hz，影响PID参数
     rotate_rate = rospy.Rate(100)
     global follow_line
-    #判断动作组不为空
     if mov_grop != None:
-        #动作组长度
         length_grop = len(mov_grop)
-        #判断动作组长度为大于等于3，且为奇数
         if length_grop % 2 != 1:
             rospy.logwarn("mov_grop is not complete, or too many args!!!")
             return False
         else:
-            #循环执行直线动作
             for i in range((length_grop - 1)/ 2):
-                #阻塞式执行，循环条件：move()函数返回假，且roscore存在
                 while not Move_robo.move(mov_grop[i*2], mov_grop[i*2+1]) and not rospy.is_shutdown():
                     #print("Movement Group num %d is handled\r\n",i+1)
-                    #sleep确保循环周期固定
                     mov_rate.sleep()
-            #循环执行旋转动作
-            #阻塞式执行，循环条件：Robot_Rotate()函数返回假，且roscore存在
             while not Rotate_robo.Robot_Rotate((mov_grop[length_grop - 1] != 0), mov_grop[length_grop - 1]) and not rospy.is_shutdown():
-                #sleep确保循环周期固定
                 rotate_rate.sleep()
-            #清空OPENMV发送的串口数据缓存
             follow_line.ser_OPMV.reset_input_buffer()
-            follow_line.ser_OPMV.reset_output_buffer()      
-            #执行成功          
+            follow_line.ser_OPMV.reset_output_buffer()                
             rospy.loginfo("Movement executed successfully!")
             return True
 
@@ -751,8 +695,16 @@ if __name__ == '__main__':
         if not ROS_Ctrl.Cancel_Motion:
             follow_line.Openmv_Data_Receive()
             if ROS_Ctrl.Move_Motion:
-                # movement_execute(Move_shortline)
-                pass
+                movement_execute(Move_shortline)
+            if ROS_Ctrl.Measure_Switch:
+                print("distance is ",Move_robo.dis_measure(1))
+                Finish_Measure_flag = True
+            else:
+                if Finish_Measure_flag:
+                    Finish_Measure_flag = False
+                    Move_robo.dis_measure(0)
+                else:
+                    pass
             ROS_Ctrl.Move_Motion = 0
         rate.sleep()
     rospy.loginfo("Follow Line Node Exit!")

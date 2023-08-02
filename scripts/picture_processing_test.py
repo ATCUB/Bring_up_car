@@ -2,10 +2,7 @@
 import cv2
 import numpy as np
 import operator
-from Tracks import GetNextDirction
-from Tracks import GetNextDirctions
-from Tracks import FindTracks
-
+from Tracks_Test_ProMax import Point_Init
 "转换成左上角坐标"
 def Left_Down_LocationChange(Location_x,Location_y):
     Location_x = Location_x
@@ -74,12 +71,12 @@ def ShapeDetection(img,imge):
                 i = i + 1
     "当轮廓大于4时，报错弹出"
     if i < 4 :
-        #print("警告：未检测出 4 个角点,检测出",i,"个点")
-        exit ()
+        print("警告：未检测出 4 个角点,检测出",i,"个点")
+        locate = []
     "当轮廓小于4时，报错弹出"
     if i > 4 :
-        #print("警告：检测过多角点,检测出",i,"个点")
-        exit()
+        print("警告：检测过多角点,检测出",i,"个点")
+        location = []
     return locate , location
 
 "定义画圆函数"
@@ -102,10 +99,10 @@ def drawcircles(img_K,img_K_copy):
         circles = cv2.HoughCircles(thresh_map, cv2.HOUGH_GRADIENT, 1, 20, param1=100, param2=16, minRadius=1,
                                    maxRadius=18)
         if circles is  None:
-            #print("未检测到圆")
-            exit()
+            print("未检测到圆")
+            return 0 , 999
         circless = circles[0, :]
-        #print("len(circless)", len(circless))
+        print("len(circless)", len(circless))
         canshu = 16
         i = 0
         while len(circless) != 8:
@@ -124,8 +121,8 @@ def drawcircles(img_K,img_K_copy):
                 circless = circles[0, :]
             i = i + 1
             if i > 100 :
-                #print("未检测到8个圆")
-                exit()
+                print("未检测到8个圆")
+                flag = 999
                 break
         i= 0
         # print("圆心坐标：", circles)
@@ -160,8 +157,8 @@ def drawcircles(img_K,img_K_copy):
                 treasure[i] = (treasure_x[i] * 40 + 20, treasure_y[i] * 40 + 20)
                 i = i + 1
 
-            #print("treasure_x = ", treasure_x)
-            #print("treasure_y = ", treasure_y)
+            # print("treasure_x = ", treasure_x)
+            # print("treasure_y = ", treasure_y)
             # print("treasure = ", treasure)
             flag = 1
             return treasure ,flag
@@ -274,165 +271,142 @@ def ReTreasure(treasures,flag):
 
         return treasuresss
 
-"定义确定宝藏坐标的函数"
-#color 为颜色 0 蓝色 1 红色
-#path 为图片路径
-#返回值为宝藏坐标值
-def Find_Treasure(color,path):
 
+
+
+def Find_Treasure(color):
+    "获取照片"
+    cap = cv2.VideoCapture(0)  # 0表示默认相机设备
+    Treasures_Check = []
+    if not cap.isOpened():
+        print("Failed to open camera")
+        exit()
+    while(True):
+        ret, frame = cap.read()
+        if not ret:
+            print("Failed to capture frame")
+            exit()
     #对藏宝图参数进行设置
-    blue = 0
-    red = 1
-    # color  = blue
-    global  mistake
-    mistake = 83
-    #读入图片并修正大小
-    # img = cv2.imread("../photo/test14.png")
-    img = cv2.imread(path)
-    # print("img.shape",img.shape)
+        blue = 0
+        red = 1
+        # color  = blue
+        global  mistake
+        mistake = 83
+        #读入图片并修正大小
+        # img = cv2.imread("../photo/test14.png")
+        img = frame
+        # print("img.shape",img.shape)
 
-    "对图像进行方向修改"
-    if img.shape[0] > img.shape[1] :
-        img_xz = rotate_bound(img,-90)
-        img = img_xz
+        "对图像进行方向修改"
+        if img.shape[0] > img.shape[1] :
+            img_xz = rotate_bound(img,-90)
+            img = img_xz
 
-    "对图像进行大小修改"
-    ratio = img.shape[0] / 500.0
-    rate = img.shape[1] / img.shape[0]
-    Len = rate*500.0
-    orig = img.copy()
-    img = cv2.resize(img,(int(Len),500))
-    global imgContour
-    imgContour = img.copy()
-    # cv2.imshow("img",img)
+        "对图像进行大小修改"
+        ratio = img.shape[0] / 500.0
+        rate = img.shape[1] / img.shape[0]
+        Len = rate*500.0
+        orig = img.copy()
+        img = cv2.resize(img,(int(Len),500))
+        cv2.imshow("map", img)
+        global imgContour
+        imgContour = img.copy()
+        # cv2.imshow("img",img)
 
-    #对图像进行初步处理
-    "转灰度图"
-    imgGray = cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
-    "高斯模糊"
-    imgBlur = cv2.GaussianBlur(imgGray,(5,5),1)
-    "Canny算子边缘检测"
-    imgCanny = cv2.Canny(imgBlur,60,60)
+        #对图像进行初步处理
+        "转灰度图"
+        imgGray = cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
+        "高斯模糊"
+        imgBlur = cv2.GaussianBlur(imgGray,(5,5),1)
+        "Canny算子边缘检测"
+        imgCanny = cv2.Canny(imgBlur,60,60)
 
-    #检测形状，定出四个点
-    "形状检测"
-    locate , location = ShapeDetection(imgCanny,img)
+        #检测形状，定出四个点
+        "形状检测"
+        locate , location = ShapeDetection(imgCanny,img)
+        if(locate != [])&(location != []):
+            #透视转换_坐标
+            "设置变化图像大小"
+            width,height = 520,520
+            "将四个角点X的坐标转换"
+            x = np.zeros(4)
+            x[0] = locate[(0,0)]*locate[(0,0)] + locate[(0,1)]*locate[(0,1)]
+            x[1] = locate[(1,0)]*locate[(1,0)] + locate[(1,1)]*locate[(1,1)]
+            x[2] = locate[(2,0)]*locate[(2,0)] + locate[(2,1)]*locate[(2,1)]
+            x[3] = locate[(3,0)]*locate[(3,0)] + locate[(3,1)]*locate[(3,1)]
+            "创建数组，储存point点"
+            point = np.zeros((4, 2))
+            "找出X的最大值，赋值给point[2]"
+            max_index, max_number = max(enumerate(x), key=operator.itemgetter(1))
+            point[2] = location[max_index]
+            "将X最大值变为0"
+            location[max_index] = 0
+            x[max_index] = 0
+            max_index, max_number = max(enumerate(x), key=operator.itemgetter(1))
+            if location[(max_index,0)] > 200:
+                point[1] = location[max_index]
+                location[max_index] = 0
+                x[max_index] = 0
+                max_index, max_number = max(enumerate(x), key=operator.itemgetter(1))
+                point[3] = location[max_index]
+                location[max_index] = 0
+                x[max_index] = 0
+                max_index, max_number = max(enumerate(x), key=operator.itemgetter(1))
+                point[0] = location[max_index]
+                location[max_index] = 0
+                x[max_index] = 0
+            else:
+                point[3] = location[max_index]
+                location[max_index] = 0
+                x[max_index] = 0
+                max_index, max_number = max(enumerate(x), key=operator.itemgetter(1))
+                point[1] = location[max_index]
+                location[max_index] = 0
+                x[max_index] = 0
+                max_index, max_number = max(enumerate(x), key=operator.itemgetter(1))
+                point[0] = location[max_index]
+                location[max_index] = 0
+                x[max_index] = 0
+            # print("point = ", point)
+            # print("x = ",x)
+            # print("location",location)
 
-    #透视转换_坐标
-    "设置变化图像大小"
-    width,height = 520,520
-    "将四个角点X的坐标转换"
-    x = np.zeros(4)
-    x[0] = locate[(0,0)]*locate[(0,0)] + locate[(0,1)]*locate[(0,1)]
-    x[1] = locate[(1,0)]*locate[(1,0)] + locate[(1,1)]*locate[(1,1)]
-    x[2] = locate[(2,0)]*locate[(2,0)] + locate[(2,1)]*locate[(2,1)]
-    x[3] = locate[(3,0)]*locate[(3,0)] + locate[(3,1)]*locate[(3,1)]
-    "创建数组，储存point点"
-    point = np.zeros((4, 2))
-    "找出X的最大值，赋值给point[2]"
-    max_index, max_number = max(enumerate(x), key=operator.itemgetter(1))
-    point[2] = location[max_index]
-    "将X最大值变为0"
-    location[max_index] = 0
-    x[max_index] = 0
-    max_index, max_number = max(enumerate(x), key=operator.itemgetter(1))
-    if location[(max_index,0)] > 200:
-        point[1] = location[max_index]
-        location[max_index] = 0
-        x[max_index] = 0
-        max_index, max_number = max(enumerate(x), key=operator.itemgetter(1))
-        point[3] = location[max_index]
-        location[max_index] = 0
-        x[max_index] = 0
-        max_index, max_number = max(enumerate(x), key=operator.itemgetter(1))
-        point[0] = location[max_index]
-        location[max_index] = 0
-        x[max_index] = 0
-    else:
-        point[3] = location[max_index]
-        location[max_index] = 0
-        x[max_index] = 0
-        max_index, max_number = max(enumerate(x), key=operator.itemgetter(1))
-        point[1] = location[max_index]
-        location[max_index] = 0
-        x[max_index] = 0
-        max_index, max_number = max(enumerate(x), key=operator.itemgetter(1))
-        point[0] = location[max_index]
-        location[max_index] = 0
-        x[max_index] = 0
-    # print("point = ", point)
-    # print("x = ",x)
-    # print("location",location)
+            #截取图像并画圆
+            "进行透视操作"
+            pts1 = np.float32(point)
+            pts2 = np.float32([[0,0],[width,0],[width,height],[0,height]])
+            matrix_K = cv2.getPerspectiveTransform(pts1,pts2)
+            img_K = cv2.warpPerspective(img,matrix_K,(width,height))
+            # cv2.imshow("img_k",img_K)
+            img_K_copy = img_K.copy()
+            "画圆"
+            treasure_0 , flag =  drawcircles(img_K,img_K_copy)
+            if flag != 0 :
+                treasure = treasure_0
+            imge = img_K
+            # cv2.imwrite("../save/imge.png",imge)
+            #对宝藏图进行二次处理
+            "将宝藏按照人为顺序重新排列"
+            treasure = ReTreasure(treasure,color)
 
-    #截取图像并画圆
-    "进行透视操作"
-    pts1 = np.float32(point)
-    pts2 = np.float32([[0,0],[width,0],[width,height],[0,height]])
-    matrix_K = cv2.getPerspectiveTransform(pts1,pts2)
-    img_K = cv2.warpPerspective(img,matrix_K,(width,height))
-    # cv2.imshow("img_k",img_K)
-    img_K_copy = img_K.copy()
-    "画圆"
-    treasure_0 , flag =  drawcircles(img_K,img_K_copy)
-    if flag != 0 :
-        treasure = treasure_0
-    imge = img_K
-    cv2.imwrite("../save/imge.png",imge)
-    #对宝藏图进行二次处理
-    "将宝藏按照人为顺序重新排列"
-    treasure = ReTreasure(treasure,color)
+            # Location = GetLocation(100,100)
+            # print(Location)
+            "为宝藏图添加起点和终点"
+            if color == red :
+                treasure = np.insert(treasure,0,[380,20],axis=0)
+                treasure = np.append(treasure,[[20,380]],axis=0)
+            else :
+                treasure = np.insert(treasure, 0, [ 20,  380],axis=0)
+                treasure = np.append(treasure, [[380,20]],axis=0)
+            Treasures_Check.append(treasure)
+            if(len(Treasures_Check) == 10):
+                for Treasure_Check in Treasures_Check:
+                    if (Treasure_Check.all() == treasure.all()):
+                        return treasure
+                        Treasures_Check = []
+                    else:
+                        Treasures_Check.pop()
+        cv2.waitKey(50)
 
-    # Location = GetLocation(100,100)
-    # print(Location)
-    "为宝藏图添加起点和终点"
-    if color == red :
-        treasure = np.insert(treasure,0,[380,20],axis=0)
-        treasure = np.append(treasure,[[20,380]],axis=0)
-    else :
-        treasure = np.insert(treasure, 0, [ 20,  380],axis=0)
-        treasure = np.append(treasure, [[380,20]],axis=0)
-    return treasure
-    # print("treasure = ",treasure)
-    # FindTracks(treasure)
-    # dir = GetNextDirction(50,250,1)
-
-
-    # cv2.imshow("imge",imge)
-    # cv2.waitKey(0)
-
-
-treasure = Find_Treasure(0,"/home/jetson/pathshow_ws/src/pathshow/scripts/test14.png")
-FindTracks(treasure)
-dir = GetNextDirctions(1)
-#print("it is show treasure")
-#print(treasure)
-#print(dir)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Point_Init((Find_Treasure(0)))
+print(np.loadtxt("MinTracksPoints.txt"))

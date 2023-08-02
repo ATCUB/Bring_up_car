@@ -716,7 +716,7 @@ def Point_Init(points):
 #如（1，0，1，0）第一个真第二个假，第三个真，第四个假，传入为数组非元组
 #返回值为新路径
 def ReGetMinTracks(points):
-    New_Points = np.loadtxt("MinTracksPoints.txt")  # 读取文件
+    New_Points = np.loadtxt("/home/jetson/yahboomcar_ws/src/yahboomcar_bringup/scripts/MinTracksPoints.txt")  # 读取文件
     New_New_Points = list(New_Points[5:].copy())
     # print("New_New_Points = ",New_New_Points)
     if (points == [1,1,1]):
@@ -789,7 +789,7 @@ def ReGetMinTracks(points):
 "恢复程序，当发送碰撞时"
 #传入下一个未到达点坐标即可
 def TracksCorrection(point):
-    MinTracks = np.loadtxt("MinTracksPoints.txt") # 读取文件
+    MinTracks = np.loadtxt("/home/jetson/yahboomcar_ws/src/yahboomcar_bringup/scripts/MinTracksPoints.txt") # 读取文件
     for MinTrack in MinTracks:
         if(MinTrack[0] == point[0])&(MinTrack[1] == point[1]):
             break
@@ -808,8 +808,8 @@ def TracksCorrection(point):
 Track_Cost = []
 Treasure_Indexs = [Treasure_Index(0, [1, 16], [1, 2], [0, 0]) for i in range(0, 78)]
 Treasure_Indexs_Init()
-points = [(20,380),(20,260),(340,220),(380,300),(100,300),(60, 180.),( 20, 100.),(300, 100.),(380,140.),(380,20)]
-Point_Init(points)
+#points = [(20,380),(20,260),(340,220),(380,300),(100,300),(60, 180.),( 20, 100.),(300, 100.),(380,140.),(380,20)]
+#Point_Init(points)
 # print(Track_Cost)
 # Point_Init(points)
 print(ReGetMinTracks([1,1,0,0]))

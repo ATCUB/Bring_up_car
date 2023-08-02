@@ -204,11 +204,11 @@ def GetNextRoad(Location1_X,Location1_Y,Location2_X,Location2_Y):
         NextPoints = []
         for NextNum in NextNums:
             NextPoints.append((Treasure_Indexs[NextNum].point[0],Treasure_Indexs[NextNum].point[1]))
-        print(NextPoints)
+      #  print(NextPoints)
         for NextPoint in NextPoints :
             if (Location1_X == NextPoint[0]) & (Location1_Y == NextPoint[1]):
                 NextPoints.remove(NextPoint)
-        print(NextPoints)
+       # print(NextPoints)
         dirction_R = 0
         dirction_L = 0
         dirction_U = 0
@@ -222,10 +222,10 @@ def GetNextRoad(Location1_X,Location1_Y,Location2_X,Location2_Y):
                 dirction_D = dirction_D + 1
             if (Treasure_Indexs[Location2].point[1] - NextPoint[1] >0):
                 dirction_U = dirction_U + 1
-        print(dirction_R)
-        print(dirction_L)
-        print(dirction_U)
-        print(dirction_D)
+     #   print(dirction_R)
+     #   print(dirction_L)
+      #  print(dirction_U)
+      #  print(dirction_D)
         if ((dirction_R == 1)&(dirction_L == 1))or((dirction_D == 1)&(dirction_U == 1)):
             return 2
         else:
@@ -289,12 +289,12 @@ def GetNextDirction(Location_X,Location_Y,H):
         vector1 = (point2[0] - point1[0], point2[1] - point1[1])
         vector2 = (point3[0] - point2[0], point3[1] - point2[1])
         vector = (vector2[0] - vector1[0], vector2[1] - vector1[1])
-        print("point1=", Treasure_Indexs[Indexs[num - 1]].Num)
-        print("point2=", Treasure_Indexs[Indexs[num]].Num)
-        print("point3=", Treasure_Indexs[Indexs[num + 1]].Num)
-        print("vector1=", vector1)
-        print("vector2=", vector2)
-        print("vector=", vector)
+      #  print("point1=", Treasure_Indexs[Indexs[num - 1]].Num)
+      #  print("point2=", Treasure_Indexs[Indexs[num]].Num)
+      #  print("point3=", Treasure_Indexs[Indexs[num + 1]].Num)
+     #   print("vector1=", vector1)
+      #  print("vector2=", vector2)
+      #  print("vector=", vector)
         dirction = 0
         if(vector1[0]>0):
             if(vector2[1]>0):
@@ -318,49 +318,50 @@ def GetNextDirction(Location_X,Location_Y,H):
                 dirction = 3
         else:
             dirction = 0
-        print("dirction=", dirction)
+     #   print("dirction=", dirction)
         Road = GetNextRoad(Treasure_Indexs[Indexs[num - 1]].point[0] * 40 + 20,
                            Treasure_Indexs[Indexs[num - 1]].point[1] * 40 + 20,
                            Treasure_Indexs[Indexs[num]].point[0] * 40 + 20,
                            Treasure_Indexs[Indexs[num]].point[1] * 40 + 20)
-        print("road = ", Road)
+      #  print("road = ", Road)
         if (Road == 1):
             if (dirction == 3):
-                print("L左转")
+              #  print("L左转")
                 return 1
             if (dirction == 1):
-                print("L右转")
+               # print("L右转")
                 return 2
         if (Road == 2):
             if (dirction == 3):
-                print("T左转")
+               # print("T左转")
                 return 4
             if (dirction == 1):
-                print("T右转")
+               # print("T右转")
                 return 5
         if (Road == 3):
             if (dirction == 0):
-                print("-|或者|-这种道路直走")
+               # print("-|或者|-这种道路直走")
                 return 0
             if (dirction == 1):
-                print("-|右转")
+              #  print("-|右转")
                 return 5
             if (dirction == 3):
-                print("-|左转")
+                #print("-|左转")
                 return 4
         if (Road ==4):
             if (dirction == 0):
-                print("十字道路直走")
+                #print("十字道路直走")
                 return 0
             if (dirction == 1):
-                print("十字右转")
+                #print("十字右转")
                 return 5
             if (dirction == 3):
-                print("十字左转")
+                #print("十字左转")
                 return 4
 
     else:
-        print("直走")
+        #print("直走")
+        1
         #return 0
 
 # H是第几条路径
@@ -466,7 +467,7 @@ def FindTrack(first_point, last_point):
                     if goal_point == last_point:
                         # print(Treasure_Indexs[goal_point].track)
                         break
-    print(Treasure_Indexs[goal_point].track)
+    #print(Treasure_Indexs[goal_point].track)
     tracks = Treasure_Indexs[goal_point].track
     for i in range(0, len(tracks) - 1):
         x = Treasure_Indexs[tracks[i + 1]].point[0] - Treasure_Indexs[tracks[i]].point[0]
@@ -608,9 +609,9 @@ tracks = FindTracks(((20,380),(340,220),(180,260),(380,300),(100,300),(220, 140.
 #     dir = GetNextDirction(x,y,6)
 
 #     print("dir = ",dir)
-print(tracks)
+#print(tracks)
 Dir = GetNextDirctions(2)
-print(Dir)
+#print(Dir)
 # tracks = FindTracks(((20,380),(340,220),(180,260),(380,300),(100,300),(220, 140.),( 60, 180.),(20, 100.),(300,100.),(380,20)))
 # for track in Global_Track_6:
 #     point = GetPoints(track)
