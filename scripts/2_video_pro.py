@@ -5,7 +5,7 @@ import math
 import time
 import rospy
 "定义黑白比列检测函数"
-
+rospy.set_param('goal',0)
 True_Value = 0
 "定义红蓝方"
 red = 1
@@ -93,6 +93,7 @@ def Video_Init(color):
   #  while(not rospy.get_param("enable")):
      #   ref, frame = cap.read()
     "红蓝方检测"
+    flag_rate=1
     while(rospy.get_param("enable")):
     	ref, frame = cap.read()
         flag = 0
@@ -106,6 +107,7 @@ def Video_Init(color):
                     "将读到的照片转换比例"
                     ref, frame = cap.read()
                     frame = cv2.resize(frame,(640,480))
+                    frame = frame[0:int(frame.shape[1]*0.9),]
                     ratio = frame.shape[0] / 500.0
                     rate = frame.shape[1] / frame.shape[0]
                     Len = rate * 500.0
@@ -427,7 +429,7 @@ def Video_Init(color):
 	    rospy.set_param('goal',1)
  	    rospy.set_param("enable",0)         
             rospy.set_param("open",0)            
-        if (flag_Flase_Num == 10):
+        if (flag_Flase_Num == 5):
             True_Value = 0
             flag_Flase_Num = 0
             #time.sleep(1)
@@ -440,7 +442,7 @@ def Video_Init(color):
         #cv2.imshow("mask_yellow", mask_yellow)
         cv2.waitKey(50)
 while(1):
-    Video_Init(blue)
+    Video_Init(red)
 
 
 

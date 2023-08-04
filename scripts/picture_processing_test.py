@@ -1,8 +1,8 @@
-# coding=UTF-8
+# -*- coding:utf-8 -*-
 import cv2
 import numpy as np
 import operator
-from Tracks_Test_ProMax import Point_Init
+from Tracks_Test_ProMax_Pro import Point_Init
 "转换成左上角坐标"
 def Left_Down_LocationChange(Location_x,Location_y):
     Location_x = Location_x
@@ -102,7 +102,7 @@ def drawcircles(img_K,img_K_copy):
             print("未检测到圆")
             return 0 , 999
         circless = circles[0, :]
-        print("len(circless)", len(circless))
+        # print("len(circless)", len(circless))
         canshu = 16
         i = 0
         while len(circless) != 8:
@@ -123,7 +123,8 @@ def drawcircles(img_K,img_K_copy):
             if i > 100 :
                 print("未检测到8个圆")
                 flag = 999
-                break
+                return 0 ,999
+        print("len(circless)", len(circless))
         i= 0
         # print("圆心坐标：", circles)
         # print("圆心坐标：", circles.shape)
@@ -150,7 +151,7 @@ def drawcircles(img_K,img_K_copy):
             treasure_y = np.zeros((len(circles),))
             # print("circles_x：", circles_x)
             # print("circles_y：", circles_y)
-            i = 0;
+            i = 0
             for circle in circles:
                 treasure_x[i] = (circles_x[i] - mistake) // 40
                 treasure_y[i] = (circles_y[i] - mistake) // 40
@@ -190,7 +191,7 @@ def ReTreasure(treasures,flag):
         for treasure in treasures:
             x = treasure[0]
             y = treasure[1]
-            if ((x > 80) & (x < 120) & (y > 200)) | ((x > 160) & (x < 240) & (y > 280)):
+            if ((x > 80) & (x < 160) & (y > 200)) | ((x > 160) & (x < 240) & (y > 280)):
                 treasuress.append(treasure)
         for treasure in treasures:
             x = treasure[0]
@@ -213,7 +214,7 @@ def ReTreasure(treasures,flag):
             if (x > 320) & (y < 200):
                 treasuress.append(treasure)
         i = 0
-
+        # print("treasuress=", treasuress)
         for treasure in treasuress :
             # print("treasuress=", treasuress[i])
             treasuresss[i] = treasure
@@ -381,32 +382,45 @@ def Find_Treasure(color):
             img_K_copy = img_K.copy()
             "画圆"
             treasure_0 , flag =  drawcircles(img_K,img_K_copy)
-            if flag != 0 :
+            if flag != 999 :
                 treasure = treasure_0
-            imge = img_K
-            # cv2.imwrite("../save/imge.png",imge)
-            #对宝藏图进行二次处理
-            "将宝藏按照人为顺序重新排列"
-            treasure = ReTreasure(treasure,color)
+                imge = img_K
+                # cv2.imwrite("../save/imge.png",imge)
+                #对宝藏图进行二次处理
+                "将宝藏按照人为顺序重新排列"
+                treasure = ReTreasure(treasure,color)
 
-            # Location = GetLocation(100,100)
-            # print(Location)
-            "为宝藏图添加起点和终点"
-            if color == red :
-                treasure = np.insert(treasure,0,[380,20],axis=0)
-                treasure = np.append(treasure,[[20,380]],axis=0)
-            else :
-                treasure = np.insert(treasure, 0, [ 20,  380],axis=0)
-                treasure = np.append(treasure, [[380,20]],axis=0)
-            Treasures_Check.append(treasure)
-            if(len(Treasures_Check) == 10):
-                for Treasure_Check in Treasures_Check:
-                    if (Treasure_Check.all() == treasure.all()):
-                        return treasure
-                        Treasures_Check = []
-                    else:
-                        Treasures_Check.pop()
+                # Location = GetLocation(100,100)
+                # print(Location)
+                "为宝藏图添加起点和终点"
+                if color == red :
+                    treasure = np.insert(treasure,0,[380,20],axis=0)
+                    treasure = np.append(treasure,[[20,380]],axis=0)
+                else :
+                    treasure = np.insert(treasure, 0, [ 20,  380],axis=0)
+                    treasure = np.append(treasure, [[380,20]],axis=0)
+                return treasure
+                Treasures_Check.append(treasure)
+                if(len(Treasures_Check) == 10):
+                    for Treasure_Check in Treasures_Check:
+                        if (Treasure_Check.all() == treasure.all()):
+                            return treasure
+                            Treasures_Check = []
+                        else:
+                            Treasures_Check.pop()
         cv2.waitKey(50)
-
-Point_Init((Find_Treasure(0)))
-print(np.loadtxt("MinTracksPoints.txt"))
+def check(a):
+    global b
+    try:
+        b = Point_Init(a)
+        return 1
+    except ValueError:
+        return 0
+    except IndexError:
+        return 0
+a = (Find_Treasure(0))
+b = []
+print(a)
+while (check(a)==0):
+    1
+print(b)

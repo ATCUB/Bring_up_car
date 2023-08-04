@@ -22,19 +22,23 @@ from nav_msgs.msg import Odometry
 from yahboomcar_bringup.cfg import FollowPIDnewConfig
 import matplotlib.pyplot as plt
 from typing import Any
-from Tracks import GetNextDirctions
+#from Tracks import GetNextDirctions
 import struct
 from std_msgs.msg import String
 from pictureprocessing import Find_Treasure
-from Tracks import FindTracks
-treasure = Find_Treasure(0,"/home/jetson/pathshow_ws/src/pathshow/scripts/test14.png")
-FindTracks(treasure)
-dir_num = 2
+from Tracks_Test_ProMax_Pro import FindTracks,GetNextDirctions
+#treasure = Find_Treasure(0,"/home/jetson/pathshow_ws/src/pathshow/scripts/test14.png")
+#FindTracks(treasure)
+FindTracks(np.loadtxt("/home/jetson/yahboomcar_ws/src/yahboomcar_bringup/scripts/MinTracksPoints.txt"))
+dir_num = 1
 direction2 = GetNextDirctions(dir_num)
 #direction2 = [1,1,2,2,1,2,1,2,0,2,0,1,1,2]
 # print("Start Direction is %d", direction2)
 RAD2DEG = 180 / math.pi
 rospy.set_param("opened",0)
+#rospy.set_param('goal',0)
+#rospy.set_param('enable',0)
+
 
 # 运动组，例如0.2, -0.1, 0.2, 0.2, 180，表示以0.2的速度行走 -0.1m, 以0.2的速度行走 0.2m, 最后旋转180，顺序执行
 # 数组末尾为旋转角度，如果为0表示不旋转，数组数量大于3,i且为奇数
@@ -428,10 +432,10 @@ class ROSCtrl:
 	        # follow_line.postion=0
             rospy.loginfo("Now Motion is %d", self.Cancel_Motion)
         if joy_data.buttons[1] == 1: 
-            # follow_line.Follow_Twist.angular.z =  -7.0
-            # follow_line.Follow_Twist.linear.y = 0.3
-            # follow_line.pub_vel.publish(follow_line.Follow_Twist)
-            time.sleep(0.3)
+            follow_line.Follow_Twist.angular.z =  -10.0
+            follow_line.Follow_Twist.linear.y = 0.2
+            follow_line.pub_vel.publish(follow_line.Follow_Twist)
+            time.sleep(0.2)
             # follow_line.Move_Stop()
             self.Direction_index += 1
             if self.Direction_index > 4:
@@ -465,10 +469,12 @@ class FollowLine:
         self.linear_y = 0
         self.turn=0
         self.direction_flag=0
-        self.count = 0  
+        self.count = 0 
+        self.start_time=0 
         self.last_count = 0
         self.angular_z = 0
         self.postion = 0
+	self.noturn = 0
         self.error_of_z = 0
         self.FPS_count = 0
         self.start = 0
@@ -509,7 +515,8 @@ class FollowLine:
         #self.PID_init()
         return config
     def Openmv_Data_Transmit(self, dir):
-        data = struct.pack('fffffffi',0.0, 0.0, 0.0,3.0, 0.0, 0.7,dir,60)
+       # data = struct.pack('fffffffi',0.0, 0.0, 0.0,4.0, 0.2, 1.5,dir,150)
+        data = struct.pack('fffffffi',0.0, 0.0, 0.0,2.5, 0.0, 0.7,dir,200)
         self.ser_OPMV.write(data)  
 
     def Openmv_Data_Receive(self):
@@ -523,66 +530,94 @@ class FollowLine:
                 self.start = time.time()
             self.Openmv_Data_Rx = self.Openmv_Data_Rx.decode("utf-8")
             # Stop signal 
-            if len(direction2) ==self.postion and rospy.get_param("open") == 1:
-                back = Twist()
-                back.linear.x = 0.0
-                self.pub_vel.publish(back)
+        #    if len(direction2) ==self.postion and rospy.get_param("open") == 1:
+             #   back = Twist()
+             #   back.linear.x = 0.0
+             #   self.pub_vel.publish(back)
               #  while(rospy.get_param("open")):
                  #   1
                 #    print("检测开启")
-                rospy.set_param("opened",1)
-            if self.Openmv_Data_Rx[0] == 's' and self.turn==0:
+           #     rospy.set_param("opened",1)
+            if self.Openmv_Data_Rx[0] == 'S' and self.turn==0:
                 self.stop_flag = 1
                 #print("stop_flag")
-                if 1:
-                    if len(direction2) ==self.postion:
-                        print(self.postion)
-                        #print("yes")
-                        self.pub_vel.publish(Twist())                        
-                        time.sleep(1.0)
-                        goal = rospy.get_param('goal')
-                        print(goal)
-                        if self.stop_flag and goal==1:
-                            print("真")
-                            go = Twist()
-                            go.linear.x = 0.4
-                            self.pub_vel.publish(go)
-                            time.sleep(0.7)
-                            go.linear.x = -0.4
-                            self.pub_vel.publish(go)
-                            time.sleep(0.7)
-                            movement_execute(Move_lastcorner)
-                            self.direction_flag = 1
-                            self.postion = 0
-			    self.slowdown=0
-                            dir_num +=1
-                            direction2 = GetNextDirctions(dir_num)
-		            self.ser_OPMV.reset_input_buffer()
-		            self.ser_OPMV.reset_output_buffer()
-		            self.next_first =0
-                        elif self.stop_flag and goal==0:
-                            print("假")
-                            back = Twist()
-                            back.linear.x = -0.5
-                            self.pub_vel.publish(back)
-                            time.sleep(0.4)
-                            movement_execute(Move_lastcorner_back)
-                            self.direction_flag = 1
-                            self.postion = 0
-			    self.slowdown=0
-                            dir_num +=1
-                            direction2 = GetNextDirctions(dir_num)
-		            self.ser_OPMV.reset_input_buffer()
-		            self.ser_OPMV.reset_output_buffer()
-		            self.next_first =0
-
             else:
                 self.stop_flag = 0
-            if 0:
+            goal = rospy.get_param('goal')
+            enable = rospy.get_param('enable')
+            if self.start_time !=0 and enable ==1:
+                current_time = time.time()
+                interval_time = self.start_time - current_time
+                interval_time *=-1
+                if interval_time>4:
+                    rospy.set_param('enable',0)
+                    rospy.set_param("goal",0)
+                    self.stop_flag=1
+                    print("见鬼，这里没宝藏") 
+                    self.start_time = 0
+            if 1:
+                if 1:
+                    #print(goal)
+                    if len(direction2) ==self.postion and enable==0:
+                        if self.stop_flag and goal==1 and enable==0:
+                            print(self.postion)
+                            #print("yes")
+                            self.pub_vel.publish(Twist())                        
+                            #time.sleep(1.0)                                               
+                            print("真")
+                            go = Twist()
+                            go.linear.x = -0.5
+                            self.pub_vel.publish(go)
+                            time.sleep(0.5)
+                            movement_execute(Move_lastcorner)
+                            go.linear.x = -0.8
+                            self.pub_vel.publish(go)
+                            time.sleep(1.0)
+                            self.direction_flag = 1
+                            self.postion = 0
+			    self.slowdown=0
+			    self.noturn = 0
+			    rospy.set_param('enable',0)
+                            dir_num +=1
+                            direction2 = GetNextDirctions(dir_num)
+		            self.ser_OPMV.reset_input_buffer()
+		            self.ser_OPMV.reset_output_buffer()
+		            self.next_first =0
+                        elif enable==0 and goal==0 and self.stop_flag:                            
+                            print(self.postion)
+                            #print("yes")  
+                            print("假")
+                            print("走几步！")
+                            #time.sleep(0.1)                            
+                            movement_execute(Move_lastcorner_back)
+                            time.sleep(0.1)
+                            back = Twist()
+                            if direction2[-1] == 0:
+                            	direction2[-1] = direction2[-2] 
+                            if direction2[-1] == 0:#说明-2也是0
+                            	direction2[-1] = direction2[-3]                          
+                            if direction2[-1] == 2 or direction2[-1]==5:
+                            	back.angular.z = -2.0
+                            else: 
+                                back.angular.z = 2.0    
+                            self.pub_vel.publish(back)
+                            self.direction_flag = 1
+                            self.postion = 0
+			    self.slowdown=0
+			    self.noturn = 0
+                            dir_num +=1
+			    rospy.set_param('enable',0)
+                            direction2 = GetNextDirctions(dir_num)
+		            self.ser_OPMV.reset_input_buffer()
+		            self.ser_OPMV.reset_output_buffer()
+		            self.next_first =0
+            if self.direction_flag ==1:
+	        self.linear_x =1.5
+            Data_Rx = self.Openmv_Data_Rx.split(",")		
+            if Data_Rx[0]== "s" or Data_Rx[0]== "S":
                 print("Stop cmd received!!!")
             else:
                 # split data from openmv
-                Data_Rx = self.Openmv_Data_Rx.split(",")
                 try:
                     self.linear_y = float(Data_Rx[0]) / 200.0
                     self.angular_z = float(Data_Rx[1]) / 100.0
@@ -592,8 +627,11 @@ class FollowLine:
                 # max black blob width in 6 ROI
                     self.Width = int(Data_Rx[3])
                 except ValueError:
+                        print(Data_Rx)
+                        #print("数据错了")
                         return
                 except IndexError:
+                        print('数据少了')
                         return
                 # polition confirm
                 global Rotate_robo
@@ -617,12 +655,16 @@ class FollowLine:
                    self.linear_y =0
                     #self.angular_z
                 # turn behaviour detection, if max black blob width > 150, and turn  == 0, can be considered that turn behaviour is happening
-                #print("width:",self.Width)
-                if  self.Width > 115 and self.turn == 0:                  #out
+                print("width:",self.Width)
+                if  self.Width > 120 and self.turn == 0 and self.noturn == 0:                  #out
                     # linear_x when turning
-                    if  self.direction_flag == 0:
-                        self.Follow_Twist.linear.x = -0.1
-                        self.linear_x = -0.1
+                    if  direction2[self.postion]!=0:
+                        self.Follow_Twist.linear.x = -0.2
+                        self.linear_x = -0.2
+                        
+                    #if len(direction2) -2==self.postion:
+                    #    self.Follow_Twist.linear.x = 0.15
+                    #    self.linear_x = 0.0
                     # set self.turn
                     self.turn =1
                     # reset self.count
@@ -630,12 +672,13 @@ class FollowLine:
                     # linear_x when turning
                     # angular_z when turning (-5.0, 5.0)
                     if direction2[self.postion] ==1 or direction2[self.postion] ==4 :
-                        self.Follow_Twist.angular.z = 10.0                   
-                        self.Follow_Twist.linear.y = -0.2
+                        self.Follow_Twist.angular.z = 8.0                   
+                        self.Follow_Twist.linear.y = -0.0
                     if direction2[self.postion] ==2 or direction2[self.postion]==5:
-                        self.Follow_Twist.angular.z =  -10.0
-                        self.Follow_Twist.linear.y = 0.2
-
+                        self.Follow_Twist.angular.z =  -8.0
+                        self.Follow_Twist.linear.y = 0.0
+                   # if len(direction2) -2==self.postion:
+                   #     self.Follow_Twist.angular.z *= 1.0                         
 		    self.pub_vel.publish(self.Follow_Twist)
                     #print("direction:",direction2[self.postion])
                     print("postion:",[self.postion])
@@ -643,7 +686,7 @@ class FollowLine:
                     self.pub_Buzzer.publish(True)
                     ## delay to hold turning state
                     if direction2[self.postion]!=0:
-                       time.sleep(0.2)
+                       time.sleep(0.25)
 		       self.ser_OPMV.reset_input_buffer()
 	               self.ser_OPMV.reset_output_buffer()
                        self.Follow_Twist.linear.x = 0.5                            
@@ -658,24 +701,23 @@ class FollowLine:
                     self.count+=1
                     if self.count >= 3:
                        self.turn = 0
-                       self.linear_x =1.5
+                       if len(direction2) -2!=self.postion:
+                          self.linear_x =1.5
+                       else:
+                       	  self.linear_x = 1.5
                        #print("在直线")
                        if not len(direction2) ==self.postion and self.next_first ==0:
                           self.postion += 1
                        else:
                           1                  
                 if len(direction2) ==self.postion and self.slowdown==0:
+                    self.start_time = time.time()
 		    rospy.set_param('enable', True)   
                     print("slowdown")
+	            self.noturn = 1
 		  #  rospy.set_param('enable', True)
-                    self.linear_x =0.05
-	            self.slowdown=1
-                if (direction2) ==self.postion and self.slowdown==1 and 		    rospy.get_param('enable')==0:
-		    self.linear_x =0.5
-                    #if len(direction2)-1 ==self.postion and self.turn == 0:                      
-		#if 1:                  
-                if self.direction_flag ==1:
-		    self.linear_x =0.8
+                    self.linear_x =0.2
+	            self.slowdown=1      
                 global Rotate_robo    
                 self.Follow_Twist.linear.x = self.linear_x    
                 self.Follow_Twist.linear.y =  self.linear_y      
@@ -684,7 +726,7 @@ class FollowLine:
                 if self.FPS_count ==  -1:
                     self.end = time.time()
                     self.FPS_count = 0
-                    #rospy.loginfo("FPS: %f .", 20 / (self.end - self.start))
+                    rospy.loginfo("FPS: %f .", 20 / (self.end - self.start))
                     #rospy.loginfo("Angular.Z: %f .", self.angular_z)
 
 

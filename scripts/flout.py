@@ -29,7 +29,7 @@ from pictureprocessing import Find_Treasure
 from Tracks import FindTracks
 treasure = Find_Treasure(0,"/home/jetson/pathshow_ws/src/pathshow/scripts/test14.png")
 FindTracks(treasure)
-dir_num = 2
+dir_num = 1
 direction2 = GetNextDirctions(dir_num)
 #direction2 = [1,1,2,2,1,2,1,2,0,2,0,1,1,2]
 # print("Start Direction is %d", direction2)
@@ -465,10 +465,12 @@ class FollowLine:
         self.linear_y = 0
         self.turn=0
         self.direction_flag=0
-        self.count = 0  
+        self.count = 0 
+        self.start_time=0 
         self.last_count = 0
         self.angular_z = 0
         self.postion = 0
+        self.noturn = 0
         self.error_of_z = 0
         self.FPS_count = 0
         self.start = 0
@@ -476,7 +478,7 @@ class FollowLine:
         self.flip = True
         self.stop_flag = 0
         self.next_first = 0
-	self.slowdown=0
+        self.slowdown=0
         self.error_pub = rospy.Publisher("/error_vel",Int16,queue_size=10)#发布速度话题
         self.Track_state = 'waiting'
         self.Buzzer_state = False
@@ -509,7 +511,7 @@ class FollowLine:
         #self.PID_init()
         return config
     def Openmv_Data_Transmit(self, dir):
-        data = struct.pack('fffffffi',0.0, 0.0, 0.0,3.0, 0.0, 0.7,dir,60)
+        data = struct.pack('fffffffi',0.0, 0.0, 0.0,4.0, 0.0, 0.7,dir,60)
         self.ser_OPMV.write(data)  
 
     def Openmv_Data_Receive(self):
@@ -521,170 +523,184 @@ class FollowLine:
         if self.Openmv_Data_Rx:
             if self.FPS_count ==  0:
                 self.start = time.time()
+            #openmv数据解码
             self.Openmv_Data_Rx = self.Openmv_Data_Rx.decode("utf-8")
             # Stop signal 
-            if len(direction2) ==self.postion and rospy.get_param("open") == 1:
-                back = Twist()
-                back.linear.x = 0.0
-                self.pub_vel.publish(back)
-              #  while(rospy.get_param("open")):
-                 #   1
-                #    print("检测开启")
-                rospy.set_param("opened",1)
-            if self.Openmv_Data_Rx[0] == 's' and self.turn==0:
+            #    if len(direction2) ==self.postion and rospy.get_param("open") == 1:
+            #   back = Twist()
+            #   back.linear.x = 0.0
+            #   self.pub_vel.publish(back)
+            #  while(rospy.get_param("open")):
+            #   1
+            #    print("检测开启")
+            #     rospy.set_param("opened",1)
+            if self.Openmv_Data_Rx[0] == 'S' and self.turn==0:
                 self.stop_flag = 1
                 #print("stop_flag")
-                if 1:
-                    if len(direction2) ==self.postion:
-                        print(self.postion)
-                        #print("yes")
-                        self.pub_vel.publish(Twist())                        
-                        time.sleep(1.0)
-                        goal = rospy.get_param('goal')
-                        print(goal)
-                        if self.stop_flag and goal==1:
-                            print("真")
-                            back = Twist()
-                            back.linear.x = 0.4
-                            self.pub_vel.publish(back)
-                            time.sleep(0.7)
-                            back.linear.x = -0.4
-                            self.pub_vel.publish(back)
-                            time.sleep(0.7)
-                            movement_execute(Move_lastcorner)
-                            self.direction_flag = 1
-                            self.postion = 0
-			    self.slowdown=0
-                            dir_num +=1
-                            direction2 = GetNextDirctions(dir_num)
-		            self.ser_OPMV.reset_input_buffer()
-		            self.ser_OPMV.reset_output_buffer()
-		            self.next_first =0
-                        elif self.stop_flag and goal==0:
-                            print("假")
-                            back = Twist()
-                            back.linear.x = -0.5
-                            self.pub_vel.publish(back)
-                            time.sleep(0.4)
-                            movement_execute(Move_lastcorner_back)
-                            self.direction_flag = 1
-                            self.postion = 0
-			    self.slowdown=0
-                            dir_num +=1
-                            direction2 = GetNextDirctions(dir_num)
-		            self.ser_OPMV.reset_input_buffer()
-		            self.ser_OPMV.reset_output_buffer()
-		            self.next_first =0
-
             else:
                 self.stop_flag = 0
-            if 0:
-                print("Stop cmd received!!!")
-            else:
-                # split data from openmv
-                Data_Rx = self.Openmv_Data_Rx.split(",")
-                try:
-                    self.linear_y = float(Data_Rx[0]) / 200.0
-                    self.angular_z = float(Data_Rx[1]) / 100.0
-                    #print("z:",self.angular_z)
-                # data
-                    self.for0 = float(Data_Rx[2])
-                # max black blob width in 6 ROI
-                    self.Width = int(Data_Rx[3])
-                except ValueError:
-                        return
-                except IndexError:
-                        return
-                # polition confirm
-                global Rotate_robo
-                if abs(self.for0)>400 and direction2[Rotate_robo.position]==0 :
-                   Rotate_robo.position +=1
-                # error between black line and midpoint 
-                error = float(Data_Rx[3])
-                self.error_pub.publish(error)
-                # linear y , unit: m/s, scale is 200
-                self.linear_y = float(Data_Rx[0]) / 100.0
-                self.Follow_Twist.angular.z =  -self.angular_z
-                # linear_y maximum
-                up = 0.25
-                # linear_y minimum
-                down = 0.10
-                if self.linear_y > up:
-                   self.linear_y = up
-                if self.linear_y < -up:
-                   self.linear_y = -up
-                if self.linear_y < down and self.linear_y>-down:  
-                   self.linear_y =0
-                    #self.angular_z
-                # turn behaviour detection, if max black blob width > 150, and turn  == 0, can be considered that turn behaviour is happening
-                #print("width:",self.Width)
-                if  self.Width > 115 and self.turn == 0:                  #out
-                    # linear_x when turning
-                    if  self.direction_flag == 0:
-                        self.Follow_Twist.linear.x = -0.1
-                        self.linear_x = -0.1
-                    # set self.turn
-                    self.turn =1
-                    # reset self.count
-                    self.count = 0
-                    # linear_x when turning
-                    # angular_z when turning (-5.0, 5.0)
-                    if direction2[self.postion] ==1 or direction2[self.postion] ==4 :
-                        self.Follow_Twist.angular.z = 10.0                   
-                        self.Follow_Twist.linear.y = -0.2
-                    if direction2[self.postion] ==2 or direction2[self.postion]==5:
-                        self.Follow_Twist.angular.z =  -10.0
-                        self.Follow_Twist.linear.y = 0.2
+            goal = rospy.get_param('goal')
+            enable = rospy.get_param('enable')
+            if self.start_time !=0 and enable ==1:
+                current_time = time.time()
+                interval_time = self.start_time - current_time
+                interval_time *=-1
+                if interval_time>5:
+                    rospy.set_param('enable',0)
+                    rospy.set_param("goal",0)
+                    self.stop_flag=1
+                    print("见鬼，这里没宝藏") 
+                    self.start_time = 0
+            #print(goal)
+            if len(direction2) ==self.postion and enable==0:
+                if self.stop_flag and goal==1 and enable==0:
+                    print(self.postion)
+                    #print("yes")
+                    self.pub_vel.publish(Twist())                        
+                    #time.sleep(1.0)                                               
+                    print("真")
+                    go = Twist()
+                    go.linear.x = -0.7
+                    self.pub_vel.publish(go)
+                    time.sleep(0.5)
+                    movement_execute(Move_lastcorner)
+                    go.linear.x = -0.6
+                    self.pub_vel.publish(go)
+                    time.sleep(1.0)
+                    self.direction_flag = 1
+                    self.postion = 0
+                    self.slowdown=0
+                    self.noturn = 0
+                    rospy.set_param('enable',0)
+                    dir_num +=1
+                    direction2 = GetNextDirctions(dir_num)
+                    self.ser_OPMV.reset_input_buffer()
+                    self.ser_OPMV.reset_output_buffer()
+                    self.next_first =0
+                elif enable==0 and goal==0 and self.stop_flag:                            
+                    print(self.postion)
+                    #print("yes")  
+                    print("假")
+                    #              back = Twist()
+                    #              back.linear.x = -0.4
+                    #              self.pub_vel.publish(back)
+                    #              time.sleep(0.5)
+                    print("走几步！")
+                    movement_execute(Move_lastcorner_back)
+                    self.direction_flag = 1
+                    self.postion = 0
+                    self.slowdown=0
+                    self.noturn = 0
+                    dir_num +=1
+                    rospy.set_param('enable',0)
+                    direction2 = GetNextDirctions(dir_num)
+                    self.ser_OPMV.reset_input_buffer()
+                    self.ser_OPMV.reset_output_buffer()
+                    self.next_first =0
+            if self.direction_flag ==1:
+                self.linear_x =0.8
 
-		    self.pub_vel.publish(self.Follow_Twist)
-                    #print("direction:",direction2[self.postion])
-                    print("postion:",[self.postion])
-                    rospy.set_param('beep', True)
-                    self.pub_Buzzer.publish(True)
-                    ## delay to hold turning state
-                    if direction2[self.postion]!=0:
-                       time.sleep(0.2)
-		       self.ser_OPMV.reset_input_buffer()
-	               self.ser_OPMV.reset_output_buffer()
-                       self.Follow_Twist.linear.x = 0.5                            
-                       self.linear_x =0.5
-                    self.pub_Buzzer.publish(False)
-                    #print("在转弯")
-		    self.direction_flag = 0                
-                    self.Follow_Twist.linear.y = 0.0
+            # split data from openmv
+            Data_Rx = self.Openmv_Data_Rx.split(",")
+            try:
+                self.linear_y = float(Data_Rx[0]) / 200.0
+                self.angular_z = float(Data_Rx[1]) / 100.0
+                #print("z:",self.angular_z)
+            # data
+                self.for0 = float(Data_Rx[2])
+            # max black blob width in 6 ROI
+                self.Width = int(Data_Rx[3])
+            except ValueError:
                     return
-                # straight behaviour detection, if max black blob width < 105, and turn  == 1, can be considered that straight behaviour is happening
-                if self.Width<110 and self.Width>90 and self.turn==1:
-                    self.count+=1
-                    if self.count >= 3:
-                       self.turn = 0
-                       self.linear_x =1.5
-                       #print("在直线")
-                       if not len(direction2) ==self.postion and self.next_first ==0:
-                          self.postion += 1
-                       else:
-                          1  
-                if len(direction2) ==self.postion:
-		    rospy.set_param('enable', True)
-                if len(direction2) ==self.postion and self.slowdown==0:
-                    print("slowdown")
-		  #  rospy.set_param('enable', True)
-                    self.linear_x =0.05
-	            self.slowdown=1
-                    #if len(direction2)-1 ==self.postion and self.turn == 0:                      
-		#if 1:                  
-                if self.direction_flag ==1:
-		    self.linear_x =0.8
-                global Rotate_robo    
-                self.Follow_Twist.linear.x = self.linear_x    
-                self.Follow_Twist.linear.y =  self.linear_y      
+            except IndexError:
+                    return
+            # polition confirm
+            global Rotate_robo
+            if abs(self.for0)>400 and direction2[Rotate_robo.position]==0 :
+                Rotate_robo.position +=1
+            # error between black line and midpoint 
+            error = float(Data_Rx[3])
+            self.error_pub.publish(error)
+            # linear y , unit: m/s, scale is 200
+            self.linear_y = float(Data_Rx[0]) / 100.0
+            self.Follow_Twist.angular.z =  -self.angular_z
+            # linear_y maximum
+            up = 0.25
+            # linear_y minimum
+            down = 0.10
+            if self.linear_y > up:
+                self.linear_y = up
+            if self.linear_y < -up:
+                self.linear_y = -up
+            if self.linear_y < down and self.linear_y>-down:  
+                self.linear_y =0
+                #self.angular_z
+            # turn behaviour detection, if max black blob width > 150, and turn  == 0, can be considered that turn behaviour is happening
+            #print("width:",self.Width)
+            if  self.Width > 120 and self.turn == 0 and self.noturn == 0:                  #out
+                # linear_x when turning
+                if  self.direction_flag == 0 and self.next_first==0:
+                    self.Follow_Twist.linear.x = -0.15
+                    self.linear_x = -0.15
+                # set self.turn
+                self.turn =1
+                # reset self.count
+                self.count = 0
+                # linear_x when turning
+                # angular_z when turning (-5.0, 5.0)
+                if direction2[self.postion] ==1 or direction2[self.postion] ==4 :
+                    self.Follow_Twist.angular.z = 10.0                   
+                    self.Follow_Twist.linear.y = -0.2
+                if direction2[self.postion] ==2 or direction2[self.postion]==5:
+                    self.Follow_Twist.angular.z =  -10.0
+                    self.Follow_Twist.linear.y = 0.2
+
                 self.pub_vel.publish(self.Follow_Twist)
-                self.FPS_count += 1
-                if self.FPS_count ==  -1:
-                    self.end = time.time()
-                    self.FPS_count = 0
-                    #rospy.loginfo("FPS: %f .", 20 / (self.end - self.start))
-                    #rospy.loginfo("Angular.Z: %f .", self.angular_z)
+                #print("direction:",direction2[self.postion])
+                print("postion:",[self.postion])
+                rospy.set_param('beep', True)
+                self.pub_Buzzer.publish(True)
+                ## delay to hold turning state
+                if direction2[self.postion]!=0:
+                    time.sleep(0.25)
+                    self.ser_OPMV.reset_input_buffer()
+                    self.ser_OPMV.reset_output_buffer()
+                    self.Follow_Twist.linear.x = 0.5                            
+                    self.linear_x =0.5
+                self.pub_Buzzer.publish(False)
+                #print("在转弯")
+                self.direction_flag = 0                
+                self.Follow_Twist.linear.y = 0.0
+                return
+            # straight behaviour detection, if max black blob width < 105, and turn  == 1, can be considered that straight behaviour is happening
+            if self.Width<110 and self.Width>90 and self.turn==1:
+                self.count+=1
+                if self.count >= 3:
+                    self.turn = 0
+                    self.linear_x =1.5
+                    #print("在直线")
+                    if not len(direction2) ==self.postion and self.next_first ==0:
+                        self.postion += 1
+                    else:
+                        1                  
+            if len(direction2) ==self.postion and self.slowdown==0:
+                self.start_time = time.time()
+                rospy.set_param('enable', True)   
+                print("slowdown")
+                self.noturn = 1
+                #  rospy.set_param('enable', True)
+                self.linear_x =0.15
+            self.slowdown=1      
+            global Rotate_robo    
+            self.Follow_Twist.linear.x = self.linear_x    
+            self.Follow_Twist.linear.y =  self.linear_y      
+            self.pub_vel.publish(self.Follow_Twist)
+            self.FPS_count += 1
+            if self.FPS_count ==  -1:
+                self.end = time.time()
+                self.FPS_count = 0
+                #rospy.loginfo("FPS: %f .", 20 / (self.end - self.start))
+                #rospy.loginfo("Angular.Z: %f .", self.angular_z)
 
 
     def Move_Stop(self):
@@ -747,7 +763,7 @@ if __name__ == '__main__':
     follow_line.ser_OPMV.reset_input_buffer()
     follow_line.ser_OPMV.reset_output_buffer() 
     while not rospy.is_shutdown():
-        if not ROS_Ctrl.Cancel_Motion:
+    	if not ROS_Ctrl.Cancel_Motion:
             follow_line.Openmv_Data_Receive()
             if ROS_Ctrl.Move_Motion:
                 # movement_execute(Move_shortline)
@@ -755,6 +771,8 @@ if __name__ == '__main__':
             ROS_Ctrl.Move_Motion = 0
         rate.sleep()
     rospy.loginfo("Follow Line Node Exit!")
+
+
 
 
 # if __name__ == '__main__':

@@ -561,11 +561,10 @@ class FollowLine:
 	                    self.noturn = 0
 		            self.next_first =0
                         elif self.stop_flag and goal==0:
-                            print("假")
-                            back = Twist()
-                            back.linear.x = -0.5
-                            self.pub_vel.publish(back)
-                            time.sleep(0.5)
+
+                          #  back.linear.x = -0.5
+                          #  self.pub_vel.publish(back)
+                          #  time.sleep(0.5)
                             movement_execute(Move_lastcorner_back)
                             self.direction_flag = 1
                             self.postion = 0

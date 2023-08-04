@@ -104,6 +104,7 @@ def Video_Init(color):
                 if flag_blue == 1 :
                     "将读到的照片转换比例"
                     ref, frame = cap.read()
+                    frame = frame[0:int(frame.shape[1]*0.9),]
                     frame = cv2.resize(frame,(640,480))
                     ratio = frame.shape[0] / 500.0
                     rate = frame.shape[1] / frame.shape[0]
